@@ -65,16 +65,46 @@ colSums(is.na(beer_brew))
 
 ```{r median-abv-ibu}
 # Median ABV & IBU
-beer_brew %>% 
+median_abv_ibu <- beer_brew %>% 
   group_by(state) %>% 
   summarise(median_abv = median(abv, na.rm = TRUE),
             median_ibu = median(abv, na.rm = TRUE)) %>% 
+  rename(st = state) %>% 
+  mutate(state = tolower(state.name[match(st,state.abb)]))
+
+median_abv_ibu %>%
   pivot_longer(cols = c(2:3), names_to = "measure") %>% 
   ggplot(aes(value, state, fill = measure)) +
   geom_col() + 
   facet_wrap(~ measure) +
   labs(title = "Median ABV & IBU by State") +
   theme_ipsum()
+```
+
+```{r}
+# Mapping the data instead
+library(maps)
+library(viridis)
+
+# Retrieve the states map data and merge with median data
+states_map <- map_data("state")
+median_map <- left_join(states_map, median_abv_ibu, by = c("region" = "state"))
+
+# Create the ABV map
+ggplot(median_map, aes(long, lat, group = group))+
+  geom_polygon(aes(fill = median_abv), color = "white")+
+  scale_fill_viridis_c(option = "C") +
+  labs(title = "Median ABV by State",
+       fill = "Median ABV") +
+  theme_void()
+
+# Create the IBU map
+ggplot(median_map, aes(long, lat, group = group))+
+  geom_polygon(aes(fill = median_ibu), color = "white")+
+  scale_fill_viridis_c(option = "C") +
+  labs(title = "Median IBU by State",
+       fill = "Median IBU") +
+  theme_void()
 ```
 
 5. Which state has the maximum alcoholic (ABV) beer? Which state has the most bitter (IBU) beer?
