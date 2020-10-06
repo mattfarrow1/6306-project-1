@@ -1,6 +1,15 @@
 library(rvest)
 library(xml2)
 
+# Links -------------------------------------------------------------------
+
+# Web Scraping with R: https://www.scrapingbee.com/blog/web-scraping-r/
+# AB InBev Brands: https://en.wikipedia.org/wiki/AB_InBev#Brands
+# Beer Stats: https://www.ttb.gov/beer/statistics
+# beer.db: https://openbeer.github.io
+# Open Brewery API: https://github.com/openbrewerydb/openbrewerydb
+# Open Beer Database: https://data.opendatasoft.com/explore/dataset/open-beer-database%40public-us/api/
+
 # External Data -----------------------------------------------------------
 # As we discussed this in class, I thought it might be useful in our analysis to
 # know which are already owned by one of the big manufacturers. This is one site
