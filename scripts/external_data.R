@@ -1,3 +1,6 @@
+library(rvest)
+library(xml2)
+
 # External Data -----------------------------------------------------------
 # As we discussed this in class, I thought it might be useful in our analysis to
 # know which are already owned by one of the big manufacturers. This is one site
