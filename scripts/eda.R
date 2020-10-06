@@ -19,35 +19,41 @@ glimpse(breweries)
 
 beer_brew <- left_join(beers, breweries, by = c("brewery_id" = "brew_id"))
 
-# External Data -----------------------------------------------------------
-# As we discussed this in class, I thought it might be useful in our analysis to
-# know which are already owned by one of the big manufacturers. This is one site
-# I found that appears to be pretty recent.
+# Clean up column names
+beer_brew <- beer_brew %>% 
+  rename(beer_name = name.x,
+         brewery_name = name.y)
 
-# Load libraries
-library(rvest)
-library(xml2)
+# EDA ---------------------------------------------------------------------
 
-# Define the URL
-owner_url <- "https://www.craftbeerjoe.com/brewery-who-owns-who-list/"
+colnames(beer_brew)
 
-# Scrape the data
-owner_page <- xml2::read_html(owner_url)
+# Breweries by State
+beer_brew %>% 
+  count(state)
 
-# Parse the data into a tibble
-owner_raw <- rvest::html_table(owner_page)[[1]]
+# Style & ABV
+beer_brew %>% 
+  ggplot(aes(abv, style)) +
+  geom_jitter()
 
-# Clean names
-owner_clean <- janitor::clean_names(owner_raw)
+# That's a lot of styles! What are the 10 most popular?
 
-# One cleanup thing I'd like to do is convert the ownership percentage into a
-# numeric value. I wonder if janitor can handle that?
-owner_clean <- owner_clean %>% 
-  mutate(ownership_pct = parse_number(percent_owned))
+beer_brew %>% 
+  count(style) %>% 
+  arrange(desc(n)) %>% 
+  top_n(10) %>% 
+  ggplot(aes(n, style)) +
+  geom_col(fill = "steelblue") +
+  theme_ipsum()
 
-# Save the data so it doesn't need to be scraped every time
-write_csv(owner_clean, here::here("data - raw", "owner_data.csv"))
+# Not surprising the American IPA is the top. Interesting that 8 of the top 10
+# are "American" style beers.
 
-# Read data in again
-owner_data <- read_csv(here::here("data - raw", "owner_data.csv"))
-
+beer_brew %>% 
+  group_by(ounces) %>% 
+  count(ounces) %>% 
+  mutate(ounces = as_factor(ounces)) %>% 
+  ggplot(aes(ounces, n)) +
+  geom_col(fill = "steelblue") +
+  theme_ipsum()
