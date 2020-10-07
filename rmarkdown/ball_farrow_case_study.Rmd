@@ -38,6 +38,8 @@ Briefly explain the purpose of the code. The explanations should appear as a sen
 ```{r breweries-per-state}
 breweries %>% 
   count(state)
+
+#MB comment: how can we make this into a nice table for view? Or maybe we make a cool US map graphic?
 ```
 
 2. Merge beer data with the breweries data. Print the first 6 observations and the last six observations to check the merged file.  (RMD only, this does not need to be included in the presentation or the deck.)
@@ -59,6 +61,23 @@ tail(beer_brew)
 
 ```{r address-na}
 colSums(is.na(beer_brew))
+
+#Since our question of interest involves prediction based on abv and ibu, we may want to do it two ways: straight up remove the NA's and then also impute them
+
+#Removed NA
+beer_brew_noNA <- na.omit(beer_brew)
+#Down to 1403 obs versus 2410
+
+#Check to see if we should impute based on style or abv
+plot(beer_brew$abv, beer_brew$ibu)
+#fit a line to the data to impute the value
+ibu_impute_model <- lm(ibu ~ abv, data = beer_brew)
+plot(ibu_impute_model)
+predictions <- predict(ibu_impute_model, newdata = beer_brew)
+#plot prediction versus actual
+plot(beer_brew$ibu, predictions)
+abline(0,1)
+#not the best, but better than just using median or mean? Or just remove NA ibu - this will cause problems when predicting abv based on ibu
 ```
 
 4. Compute the median alcohol content and international bitterness unit for each state. Plot a bar chart to compare.
@@ -68,10 +87,11 @@ colSums(is.na(beer_brew))
 median_abv_ibu <- beer_brew %>% 
   group_by(state) %>% 
   summarise(median_abv = median(abv, na.rm = TRUE),
-            median_ibu = median(abv, na.rm = TRUE)) %>% 
+            median_ibu = median(ibu, na.rm = TRUE)) %>% #this was abv, fixed to ibu
   rename(st = state) %>% 
   mutate(state = tolower(state.name[match(st,state.abb)]))
 
+#MB comment: we should brainstorm how to better present this as a bar chart. Also need to come back and check how to change the abv scaling, not sure why it doesn't show now
 median_abv_ibu %>%
   pivot_longer(cols = c(2:3), names_to = "measure") %>% 
   ggplot(aes(value, state, fill = measure)) +
@@ -123,7 +143,16 @@ beer_brew %>%
 
 6. Comment on the summary statistics and distribution of the ABV variable.
 
+```{r}
+
+
+```
+
 7. Is there an apparent relationship between the bitterness of the beer and its alcoholic content? Draw a scatter plot.  Make your best judgment of a relationship and EXPLAIN your answer.
+
+```{r}
+
+```
 
 8. Budweiser would also like to investigate the difference with respect to IBU and ABV between IPAs (India Pale Ales) and other types of Ale (any beer with “Ale” in its name other than IPA). You decide to use KNN classification to investigate this relationship.  Provide statistical evidence one way or the other. You can of course assume your audience is comfortable with percentages … KNN is very easy to understand conceptually.
 
