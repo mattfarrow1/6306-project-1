@@ -84,7 +84,7 @@ predictions <- predict(ibu_impute_model, newdata = beer_brew)
 #plot prediction versus actual
 plot(beer_brew$ibu, predictions)
 abline(0,1)
-#not the best, but better than just using median or mean? Or just remove NA ibu - this will cause problems when predicting abv based on ibu
+#not the best, but better than just using median or mean? Or just remove NA ibu - this will cause problems when predicting abv based on ibu. Based on question, let's just stick with removing NA
 ```
 
 4. Compute the median alcohol content and international bitterness unit for each state. Plot a bar chart to compare.
@@ -105,7 +105,7 @@ median_abv_ibu %>%
   geom_col() + 
   facet_wrap(~ measure) +
   labs(title = "Median ABV & IBU by State") +
-  theme_ipsum()
+  theme_ipsum() #this theme does not work on my PC, there's some font I don't have
 ```
 
 ```{r}
@@ -141,23 +141,45 @@ ggplot(median_map, aes(long, lat, group = group))+
 beer_brew %>% 
   arrange(desc(abv)) %>% 
   filter(row_number() == 1)
+#Colorado
 
 # Highest IBU
 beer_brew %>% 
   arrange(desc(ibu)) %>% 
   filter(row_number() == 1)
+#Oregon
 ```
 
 6. Comment on the summary statistics and distribution of the ABV variable.
 
 ```{r}
+summary(beer_brew_noNA)
 
+#Histogram of ABV
+beer_brew_noNA %>%
+  ggplot(aes(x = abv)) +
+  geom_histogram() +
+  ggtitle("Distribution of ABV") +
+  theme_minimal()
+
+#Boxplot of ABV
+beer_brew_noNA %>%
+  ggplot(aes(x = abv)) +
+  geom_boxplot() +
+  ggtitle("Distribution of ABV") +
+  theme_minimal()
 
 ```
 
 7. Is there an apparent relationship between the bitterness of the beer and its alcoholic content? Draw a scatter plot.  Make your best judgment of a relationship and EXPLAIN your answer.
 
 ```{r}
+
+beer_brew_noNA %>%
+  ggplot(aes(x = ibu, y = abv)) +
+  geom_point() +
+  geom_smooth() +
+  ggtitle("Relationship Between ABV and IBU")
 
 ```
 
