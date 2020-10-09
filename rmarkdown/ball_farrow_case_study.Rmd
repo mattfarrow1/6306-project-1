@@ -15,6 +15,7 @@ library(gt)
 library(lindia)
 library(maps)
 library(viridis)
+library(caret)
 
 # Load Data ---------------------------------------------------------------
 
@@ -313,5 +314,19 @@ beer_brew_noNA %>%
 8. Budweiser would also like to investigate the difference with respect to IBU and ABV between IPAs (India Pale Ales) and other types of Ale (any beer with “Ale” in its name other than IPA). You decide to use KNN classification to investigate this relationship. Provide statistical evidence one way or the other. You can of course assume your audience is comfortable with percentages...KNN is very easy to understand conceptually.
 
 In addition, while you have decided to use KNN to investigate this relationship (KNN is required) you may also feel free to supplement your response to this question with any other methods or techniques you have learned. Creativity and alternative solutions are always encouraged.  
+
+```{r}
+# Create data set of just "IPA" and "Ale"
+ipa_ale <- beer_brew %>% 
+  mutate(style2 = case_when(str_detect(style, "IPA") ~ "IPA",
+                            str_detect(style, "ale") ~ "Ale")) %>% 
+  filter(!is.na(style2)) %>% 
+  select(style2,
+         abv,
+         ibu)
+
+# Set seed
+set.seed(123)
+```
 
 9. Knock their socks off! Find one other useful inference from the data that you feel Budweiser may be able to find value in. You must convince them why it is important and back up your conviction with appropriate statistical evidence. 
