@@ -7,12 +7,15 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
-
 # Setup -------------------------------------------------------------------
 
 library(tidyverse)
 library(scales)
-library(hrbrthemes)
+library(gt)
+library(lindia)
+library(maps)
+library(viridis)
+library(caret)
 
 # Load Data ---------------------------------------------------------------
 
@@ -21,6 +24,12 @@ beers <- janitor::clean_names(beers)
 
 breweries <- read_csv(here::here("data - raw", "Breweries.csv"))
 breweries <- janitor::clean_names(breweries)
+
+bud_red <- "#C8102E"
+```
+
+```{r echo=FALSE, out.width="50%", fig.align='center'}
+knitr::include_graphics("http://kingoftheflatscreen.com/wp-content/uploads/2015/01/budweiser-logo_1600x1200_83-standard.jpg")
 ```
 
 # Background
@@ -36,10 +45,35 @@ Briefly explain the purpose of the code. The explanations should appear as a sen
 1. How many breweries are present in each state?
 
 ```{r breweries-per-state}
-breweries %>% 
-  count(state)
+# Retrieve the states map data and merge with median data
+states_map <- map_data("state")
 
-#MB comment: how can we make this into a nice table for view? Or maybe we make a cool US map graphic?
+# Breweries by state
+breweries_by_st <- breweries %>% 
+  count(state) %>% 
+  rename(brewery_count = n,
+         st = state) %>% 
+  mutate(state = tolower(state.name[match(st,state.abb)])) %>% 
+  filter(!is.na(state)) %>% 
+  select(state, brewery_count)
+
+# Merge states map with brewery data
+breweries_by_st_map <- left_join(states_map, breweries_by_st, by = c("region" = "state"))
+
+# Create the breweries by state map
+ggplot(breweries_by_st_map, aes(long, lat, group = group)) +
+  geom_polygon(aes(fill = brewery_count), color = "white") +
+  # scale_fill_viridis_c(option = "C") +
+  labs(title = "Breweries by State",
+       fill = "") +
+  theme_void()
+
+breweries %>% 
+  count(state) %>% 
+  gt() %>% 
+  tab_header(title = "How Many Breweries are Present in Each State?") %>% 
+  cols_label(state = "State",
+             n = "Breweries")
 ```
 
 2. Merge beer data with the breweries data. Print the first 6 observations and the last six observations to check the merged file.  (RMD only, this does not need to be included in the presentation or the deck.)
@@ -52,9 +86,17 @@ beer_brew <- beer_brew %>%
   rename(beer_name = name.x,
          brewery_name = name.y)
 
-# Look at the first and last six observations
-head(beer_brew)
-tail(beer_brew)
+# Look at the first six observations
+beer_brew %>% 
+  slice_head(n = 6) %>% 
+  gt() %>% 
+  tab_header(title = "First Six Observations")
+
+# Look at the last six observations
+beer_brew %>% 
+  slice_tail(n = 6) %>% 
+  gt() %>% 
+  tab_header(title = "First Six Observations")
 ```
 
 3. Address the missing values in each column.
@@ -62,22 +104,43 @@ tail(beer_brew)
 ```{r address-na}
 colSums(is.na(beer_brew))
 
-#Since our question of interest involves prediction based on abv and ibu, we may want to do it two ways: straight up remove the NA's and then also impute them
+# Since our question of interest involves prediction based on abv and ibu, we may
+# want to do it two ways: straight up remove the NA's and then also impute them
 
-#Removed NA
+# Removed NA
 beer_brew_noNA <- na.omit(beer_brew)
 #Down to 1403 obs versus 2410
 
-#Check to see if we should impute based on style or abv
-plot(beer_brew$abv, beer_brew$ibu)
-#fit a line to the data to impute the value
+# Check to see if we should impute based on style or abv
+ggplot(beer_brew, aes(abv, ibu)) +
+  geom_jitter(alpha = 0.4, color = bud_red) +
+  geom_smooth(method = "lm") +
+  labs(title = "Relationship between ABV & IBU",
+       x = "Alcohol by Volume (abv)",
+       y = "International Bitterness Units (IBU)") +
+  theme_minimal()
+
+# Create a linear model to impute the value
 ibu_impute_model <- lm(ibu ~ abv, data = beer_brew)
-plot(ibu_impute_model)
+
+# Run diagnostic plots
+gg_diagnose(ibu_impute_model) +
+  theme_minimal()
+
+# Create predictions
 predictions <- predict(ibu_impute_model, newdata = beer_brew)
-#plot prediction versus actual
-plot(beer_brew$ibu, predictions)
-abline(0,1)
-#not the best, but better than just using median or mean? Or just remove NA ibu - this will cause problems when predicting abv based on ibu. Based on question, let's just stick with removing NA
+
+# Plot prediction versus actual
+ggplot(beer_brew, aes(ibu, predictions)) +
+  geom_point(color = bud_red, alpha = 0.5) +
+  geom_abline(intercept = 0, 
+              slope = 1) +
+  labs(title = "IBU Predictions vs. Actual") +
+  theme_minimal()
+
+# Not the best, but better than just using median or mean? Or just remove NA
+# ibu? This will cause problems when predicting abv based on ibu. Based on the
+# question, let's just stick with removing NA
 ```
 
 4. Compute the median alcohol content and international bitterness unit for each state. Plot a bar chart to compare.
@@ -85,29 +148,48 @@ abline(0,1)
 ```{r median-abv-ibu}
 # Median ABV & IBU
 median_abv_ibu <- beer_brew %>% 
+  filter(state != "DC") %>% 
   group_by(state) %>% 
   summarise(median_abv = median(abv, na.rm = TRUE),
-            median_ibu = median(ibu, na.rm = TRUE)) %>% #this was abv, fixed to ibu
+            median_ibu = median(ibu, na.rm = TRUE)) %>% 
+  rename(st = state) %>% 
+  mutate(state = tolower(state.name[match(st,state.abb)]),
+         highlight_abv = (max(median_abv) == median_abv),
+         highlight_ibu = (max(median_ibu, na.rm = TRUE) == median_ibu)) %>% 
+  ungroup() %>% 
+  pivot_longer(cols = c(2:3), names_to = "measure")
+
+# MB comment: we should brainstorm how to better present this as a bar chart
+ggplot() +
+  geom_col(data = median_abv_ibu, aes(value, state, fill = measure)) +
+  geom_col(data = subset(median_abv_ibu, highlight_abv == TRUE),
+           aes(value, state), fill = c("black", NA)) +
+  geom_col(data = subset(median_abv_ibu, highlight_ibu == TRUE),
+           aes(value, state), fill = c(NA, "black")) +
+  facet_wrap( ~ measure, scales = "free_x") +
+  labs(title = "Median ABV & IBU by State",
+       fill = "") +
+  theme_minimal() +
+  guides(fill = FALSE) +
+  NULL
+```
+
+## Mapping the Data Instead
+
+```{r}
+# Retrieve the states map data 
+states_map <- map_data("state")
+
+# Re-make the median_abv_ibu data set without the pivot longer and highlights
+median_abv_ibu <- beer_brew %>% 
+  filter(state != "DC") %>% 
+  group_by(state) %>% 
+  summarise(median_abv = median(abv, na.rm = TRUE),
+            median_ibu = median(ibu, na.rm = TRUE)) %>% 
   rename(st = state) %>% 
   mutate(state = tolower(state.name[match(st,state.abb)]))
 
-#MB comment: we should brainstorm how to better present this as a bar chart. Also need to come back and check how to change the abv scaling, not sure why it doesn't show now
-median_abv_ibu %>%
-  pivot_longer(cols = c(2:3), names_to = "measure") %>% 
-  ggplot(aes(value, state, fill = measure)) +
-  geom_col() + 
-  facet_wrap(~ measure) +
-  labs(title = "Median ABV & IBU by State") +
-  theme_ipsum() #this theme does not work on my PC, there's some font I don't have
-```
-
-```{r}
-# Mapping the data instead
-library(maps)
-library(viridis)
-
-# Retrieve the states map data and merge with median data
-states_map <- map_data("state")
+# Merge the state and beer data together
 median_map <- left_join(states_map, median_abv_ibu, by = c("region" = "state"))
 
 # Create the ABV map
@@ -148,36 +230,103 @@ beer_brew %>%
 ```{r}
 summary(beer_brew_noNA)
 
-#Histogram of ABV
+# Histogram of ABV
 beer_brew_noNA %>%
   ggplot(aes(x = abv)) +
-  geom_histogram() +
+  geom_histogram(fill = bud_red, color = "gray90") +
   ggtitle("Distribution of ABV") +
   theme_minimal()
 
-#Boxplot of ABV
+# Boxplot of ABV
 beer_brew_noNA %>%
   ggplot(aes(x = abv)) +
-  geom_boxplot() +
+  geom_boxplot(
+    outlier.colour = "red",
+    outlier.shape = 8,
+    outlier.size = 2,
+    fill = bud_red
+  ) +
+  annotate(
+    geom = "curve",
+    x = 0.099,
+    y = -0.2,
+    xend = 0.05992,
+    yend = -0.1,
+    curvature = .3,
+    arrow = arrow(length = unit(2, "mm"))
+  ) +
+  annotate(
+    geom = "text",
+    x = 0.1,
+    y = -0.2,
+    label = "mean (0.05992)",
+    hjust = "left"
+  ) +
+  annotate(
+    geom = "curve",
+    x = 0.079,
+    y = -0.25,
+    xend = 0.057,
+    yend = -0.15,
+    curvature = -.4,
+    arrow = arrow(length = unit(2, "mm"))
+  ) +
+  annotate(
+    geom = "text",
+    x = 0.08,
+    y = -0.25,
+    label = "median (0.057)",
+    hjust = "left"
+  ) +
+    annotate(
+    geom = "curve",
+    x = 0.12,
+    y = 0.2,
+    xend = 0.125,
+    yend = 0,
+    curvature = -.4,
+    arrow = arrow(length = unit(2, "mm"))
+  ) +
+  annotate(
+    geom = "text",
+    x = 0.108,
+    y = 0.2,
+    label = "max (0.125)",
+    hjust = "left"
+  ) +
   ggtitle("Distribution of ABV") +
   theme_minimal()
-
 ```
 
 7. Is there an apparent relationship between the bitterness of the beer and its alcoholic content? Draw a scatter plot.  Make your best judgment of a relationship and EXPLAIN your answer.
 
 ```{r}
-
 beer_brew_noNA %>%
   ggplot(aes(x = ibu, y = abv)) +
-  geom_point() +
+  geom_jitter(alpha = 0.5) +
   geom_smooth() +
-  ggtitle("Relationship Between ABV and IBU")
-
+  labs(title = "Is there a relationship Bbetween ABV and IBU?",
+       x = "IBU",
+       y = "ABV") +
+  theme_minimal()
 ```
 
-8. Budweiser would also like to investigate the difference with respect to IBU and ABV between IPAs (India Pale Ales) and other types of Ale (any beer with “Ale” in its name other than IPA). You decide to use KNN classification to investigate this relationship.  Provide statistical evidence one way or the other. You can of course assume your audience is comfortable with percentages … KNN is very easy to understand conceptually.
+8. Budweiser would also like to investigate the difference with respect to IBU and ABV between IPAs (India Pale Ales) and other types of Ale (any beer with “Ale” in its name other than IPA). You decide to use KNN classification to investigate this relationship. Provide statistical evidence one way or the other. You can of course assume your audience is comfortable with percentages...KNN is very easy to understand conceptually.
 
-In addition, while you have decided to use KNN to investigate this relationship (KNN is required) you may also feel free to supplement your response to this question with any other methods or techniques you have learned.  Creativity and alternative solutions are always encouraged.  
+In addition, while you have decided to use KNN to investigate this relationship (KNN is required) you may also feel free to supplement your response to this question with any other methods or techniques you have learned. Creativity and alternative solutions are always encouraged.  
 
-9. Knock their socks off!  Find one other useful inference from the data that you feel Budweiser may be able to find value in. You must convince them why it is important and back up your conviction with appropriate statistical evidence. 
+```{r}
+# Create data set of just "IPA" and "Ale"
+ipa_ale <- beer_brew %>% 
+  mutate(style2 = case_when(str_detect(style, "IPA") ~ "IPA",
+                            str_detect(style, "ale") ~ "Ale")) %>% 
+  filter(!is.na(style2)) %>% 
+  select(style2,
+         abv,
+         ibu)
+
+# Set seed
+set.seed(123)
+```
+
+9. Knock their socks off! Find one other useful inference from the data that you feel Budweiser may be able to find value in. You must convince them why it is important and back up your conviction with appropriate statistical evidence. 
