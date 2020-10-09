@@ -13,6 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(scales)
 library(hrbrthemes)
+library(gt)
 
 # Load Data ---------------------------------------------------------------
 
@@ -37,7 +38,13 @@ Briefly explain the purpose of the code. The explanations should appear as a sen
 
 ```{r breweries-per-state}
 breweries %>% 
-  count(state)
+  count(state) %>% 
+  gt() %>% 
+  tab_header(title = "How Many Breweries are Present in Each State?") %>% 
+  cols_label(state = "State",
+             n = "Breweries")
+
+
 
 #MB comment: how can we make this into a nice table for view? Or maybe we make a cool US map graphic?
 ```
