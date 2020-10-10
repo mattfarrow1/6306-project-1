@@ -2,6 +2,8 @@
 title: '6306: Case Study 1'
 author: "Megan Ball, Matt Farrow"
 output: html_document
+editor_options: 
+  chunk_output_type: inline
 ---
 
 ```{r setup, include=FALSE}
@@ -63,7 +65,7 @@ breweries_by_st_map <- left_join(states_map, breweries_by_st, by = c("region" = 
 # Create the breweries by state map
 ggplot(breweries_by_st_map, aes(long, lat, group = group)) +
   geom_polygon(aes(fill = brewery_count), color = "white") +
-  # scale_fill_viridis_c(option = "C") +
+  scale_fill_viridis_c(option = "inferno") +
   labs(title = "Breweries by State",
        fill = "") +
   theme_void()
@@ -74,6 +76,26 @@ breweries %>%
   tab_header(title = "How Many Breweries are Present in Each State?") %>% 
   cols_label(state = "State",
              n = "Breweries")
+
+#Top Ten States
+breweries %>% 
+  count(state) %>% 
+  arrange(desc(n)) %>%
+  slice(1:10) %>%
+  gt() %>% 
+  tab_header(title = "Top 10 States") %>% 
+  cols_label(state = "State",
+             n = "Breweries") 
+
+#Lowest Ten States
+breweries %>% 
+  count(state) %>% 
+  arrange(n) %>%
+  slice(1:10) %>%
+  gt() %>% 
+  tab_header(title = "Bottom 10 States") %>% 
+  cols_label(state = "State",
+             n = "Breweries") 
 ```
 
 2. Merge beer data with the breweries data. Print the first 6 observations and the last six observations to check the merged file.  (RMD only, this does not need to be included in the presentation or the deck.)
@@ -305,7 +327,7 @@ beer_brew_noNA %>%
   ggplot(aes(x = ibu, y = abv)) +
   geom_jitter(alpha = 0.5) +
   geom_smooth() +
-  labs(title = "Is there a relationship Bbetween ABV and IBU?",
+  labs(title = "Is there a relationship Between ABV and IBU?",
        x = "IBU",
        y = "ABV") +
   theme_minimal()
