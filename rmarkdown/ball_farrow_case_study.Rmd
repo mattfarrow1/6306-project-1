@@ -70,12 +70,22 @@ ggplot(breweries_by_st_map, aes(long, lat, group = group)) +
        fill = "") +
   theme_void()
 
-breweries %>% 
+# Number of Breweries by State
+top_25 <- breweries %>% 
   count(state) %>% 
+  filter(state != "DC") %>% 
+  slice_head(n = 25)
+bottom_25 <- breweries %>% 
+  count(state) %>% 
+  filter(state != "DC") %>% 
+  slice_tail(n = 25)
+bind_cols(top_25, bottom_25) %>% 
   gt() %>% 
   tab_header(title = "How Many Breweries are Present in Each State?") %>% 
-  cols_label(state = "State",
-             n = "Breweries")
+  cols_label(`state...1` = "State",
+             `n...2` = "Count",
+             `state...3` = "State",
+             `n...4` = "Count")
 
 #Top Ten States
 breweries %>% 
