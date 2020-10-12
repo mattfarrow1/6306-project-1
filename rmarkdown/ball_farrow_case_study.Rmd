@@ -220,8 +220,6 @@ median_abv_ibu %>%
        y = "IBU") +
   scale_x_discrete(guide = guide_axis(angle = 90))  +
   NULL
-
-
 ```
 
 ## Mapping the Data Instead
@@ -272,29 +270,36 @@ state_centroids <- maps:::apply.polygon(state_poly, maps:::centroid.polygon)
 # with a non-missing name
 state_centroids <- state_centroids[!is.na(names(state_centroids))]
 centroid_array <- Reduce(rbind, state_centroids)
-dimnames(centroid_array) <- list(gsub("[^,]*,", "", names(state_centroids)),
-                                 c("long", "lat"))
+dimnames(centroid_array) <-
+  list(gsub("[^,]*,", "", names(state_centroids)),
+       c("long", "lat"))
 label_df <- as.data.frame(centroid_array)
 label_df$state <- rownames(label_df)
+
 #remove extra names
-label_df <- label_df[-c(23,34,36,37,38,40,53,54,56,57,58,59),]
+label_df <- label_df[-c(23, 34, 36, 37, 38, 40, 53, 54, 56, 57, 58, 59), ]
 
 #join label data with median_abv_ibu value
 median_map_label <- left_join(label_df, median_abv_ibu, by = c("state" = "state"))
 head(median_map_label)
 
 #Median IBU with value
-ggplot(median_map, aes(long, lat, group = group))+
-  geom_polygon(aes(fill = median_ibu), color = "white")+
-  geom_text(data=median_map_label, aes(label=median_ibu, group=state)) +
+ggplot(median_map, aes(long, lat, group = group)) +
+  geom_polygon(aes(fill = median_ibu), color = "white") +
+  geom_text(data = median_map_label,
+            aes(label = round(median_ibu, digits = 2), group = state),
+            size = 3) +
   scale_fill_viridis_c() +
   labs(title = "Median IBU by State",
        fill = "Median IBU") 
 
 #Median ABV with value
-ggplot(median_map, aes(long, lat, group = group))+
-  geom_polygon(aes(fill = median_abv), color = "white")+
-  geom_text(data=median_map_label, aes(label=median_abv_per, group=state)) +
+ggplot(median_map, aes(long, lat, group = group)) +
+  geom_polygon(aes(fill = median_abv), color = "white") +
+  geom_text(data = median_map_label,
+            aes(label = round(median_abv_per, digits = 2), group =
+                  state),
+            size = 3) +
   scale_fill_viridis_c() +
   labs(title = "Median ABV by State",
        fill = "Median ABV (%)") 
