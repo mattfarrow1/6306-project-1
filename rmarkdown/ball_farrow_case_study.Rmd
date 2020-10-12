@@ -174,7 +174,8 @@ beer_brew <- beer_brew %>%
 # Replace NaN with NA
 beer_brew$ibu[is.nan(beer_brew$ibu)] <- NA
 
-beer_brew
+# Drop remaining rows with missing values
+beer_brew <- na.omit(beer_brew)
 ```
 
 4. Compute the median alcohol content and international bitterness unit for each state. Plot a bar chart to compare.
