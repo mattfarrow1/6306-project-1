@@ -71,21 +71,28 @@ ggplot(breweries_by_st_map, aes(long, lat, group = group)) +
   theme_void()
 
 # Number of Breweries by State
-top_25 <- breweries %>% 
-  count(state) %>% 
-  filter(state != "DC") %>% 
-  slice_head(n = 25)
-bottom_25 <- breweries %>% 
-  count(state) %>% 
-  filter(state != "DC") %>% 
-  slice_tail(n = 25)
-bind_cols(top_25, bottom_25) %>% 
+by_st1 <- breweries_by_st %>% 
+  arrange(desc(brewery_count)) %>% 
+  slice(1:17)
+by_st2 <- breweries_by_st %>% 
+  arrange(desc(brewery_count)) %>% 
+  slice(18:34)
+by_st3 <- breweries_by_st %>% 
+  arrange(desc(brewery_count)) %>% 
+  slice(35:51) %>% 
+  add_row()
+bind_cols(by_st1,
+          by_st2,
+          by_st3) %>% 
   gt() %>% 
   tab_header(title = "How Many Breweries are Present in Each State?") %>% 
   cols_label(`state...1` = "State",
-             `n...2` = "Count",
+             `brewery_count...2` = "Count",
              `state...3` = "State",
-             `n...4` = "Count")
+             `brewery_count...4` = "Count",
+             `state...5` = "State",
+             `brewery_count...6` = "Count") %>%
+  {.}
 
 #Top Ten States
 breweries %>% 
@@ -152,27 +159,22 @@ ggplot(beer_brew, aes(abv, ibu)) +
        y = "International Bitterness Units (IBU)") +
   theme_minimal()
 
-# Create a linear model to impute the value
-ibu_impute_model <- lm(ibu ~ abv, data = beer_brew)
+# Impute mean
+impute_mean <- function(x) {
+  ind_na <- is.na(x)
+  x[ind_na] <- mean(x[!ind_na])
+  as.numeric(x)
+}
 
-# Run diagnostic plots
-gg_diagnose(ibu_impute_model) +
-  theme_minimal()
+# Calculate mean ibu
+beer_brew <- beer_brew %>% 
+  group_by(style) %>% 
+  mutate_at(vars(ibu), impute_mean)
 
-# Create predictions
-predictions <- predict(ibu_impute_model, newdata = beer_brew)
+# Replace NaN with NA
+beer_brew$ibu[is.nan(beer_brew$ibu)] <- NA
 
-# Plot prediction versus actual
-ggplot(beer_brew, aes(ibu, predictions)) +
-  geom_point(color = bud_red, alpha = 0.5) +
-  geom_abline(intercept = 0, 
-              slope = 1) +
-  labs(title = "IBU Predictions vs. Actual") +
-  theme_minimal()
-
-# Not the best, but better than just using median or mean? Or just remove NA
-# ibu? This will cause problems when predicting abv based on ibu. Based on the
-# question, let's just stick with removing NA
+beer_brew
 ```
 
 4. Compute the median alcohol content and international bitterness unit for each state. Plot a bar chart to compare.
