@@ -58,6 +58,3 @@ wiki <- as_tibble(wiki, .name_repair = "minimal")
 # Set variable name
 names(wiki) <- "brewery"
 
-# Remove extra [] on some of the records
-wiki %>% 
-  filter(brewery == str_detect())
