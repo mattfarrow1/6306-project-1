@@ -3,7 +3,7 @@ title: '6306: Case Study 1'
 author: "Megan Ball, Matt Farrow"
 output: html_document
 editor_options: 
-  chunk_output_type: inline
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
@@ -242,6 +242,7 @@ median_abv_ibu <- beer_brew %>%
 median_map <- left_join(states_map, median_abv_ibu, by = c("region" = "state"))
 head(median_map)
 
+
 # Create the ABV map
 #ggplot(median_map, aes(long, lat, group = group))+
 #  geom_polygon(aes(fill = median_abv), color = "white")+
@@ -260,7 +261,7 @@ head(median_map)
 
 
 # Use the map function to get the polygon data, then find the centroids
-state_poly <- map("state", plot=FALSE, fill = TRUE)
+state_poly <- map("state",  plot=FALSE, fill = TRUE)
 #check state names
 state_poly$names
 
@@ -277,7 +278,9 @@ label_df <- as.data.frame(centroid_array)
 label_df$state <- rownames(label_df)
 
 #remove extra names
-label_df <- label_df[-c(23, 34, 36, 37, 38, 40, 53, 54, 56, 57, 58, 59), ]
+label_df <- label_df[-c(20, 22, 34, 36, 37, 38, 40, 53, 54, 56, 57, 58, 59), ]
+#remove subregion 
+label_df$state <- str_extract(label_df$state, "[a-z ]+")
 
 #join label data with median_abv_ibu value
 median_map_label <- left_join(label_df, median_abv_ibu, by = c("state" = "state"))
@@ -287,7 +290,7 @@ head(median_map_label)
 ggplot(median_map, aes(long, lat, group = group)) +
   geom_polygon(aes(fill = median_ibu), color = "white") +
   geom_text(data = median_map_label,
-            aes(label = round(median_ibu, digits = 2), group = state),
+            aes(label = round(median_ibu, digits = 1), group = state),
             size = 3) +
   scale_fill_viridis_c() +
   labs(title = "Median IBU by State",
@@ -297,7 +300,7 @@ ggplot(median_map, aes(long, lat, group = group)) +
 ggplot(median_map, aes(long, lat, group = group)) +
   geom_polygon(aes(fill = median_abv), color = "white") +
   geom_text(data = median_map_label,
-            aes(label = round(median_abv_per, digits = 2), group =
+            aes(label = round(median_abv_per, digits = 1), group =
                   state),
             size = 3) +
   scale_fill_viridis_c() +
