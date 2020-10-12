@@ -189,24 +189,39 @@ median_abv_ibu <- beer_brew %>%
             median_ibu = median(ibu, na.rm = TRUE)) %>% 
   rename(st = state) %>% 
   mutate(state = tolower(state.name[match(st,state.abb)]),
-         highlight_abv = (max(median_abv) == median_abv),
-         highlight_ibu = (max(median_ibu, na.rm = TRUE) == median_ibu)) %>% 
+         median_abv_per = median_abv * 100) %>% 
   ungroup() %>% 
-  pivot_longer(cols = c(2:3), names_to = "measure")
+  pivot_longer(cols = c(3,5), names_to = "measure")
 
-# MB comment: we should brainstorm how to better present this as a bar chart
-ggplot() +
-  geom_col(data = median_abv_ibu, aes(value, state, fill = measure)) +
-  geom_col(data = subset(median_abv_ibu, highlight_abv == TRUE),
-           aes(value, state), fill = c("black", NA)) +
-  geom_col(data = subset(median_abv_ibu, highlight_ibu == TRUE),
-           aes(value, state), fill = c(NA, "black")) +
-  facet_wrap( ~ measure, scales = "free_x") +
-  labs(title = "Median ABV & IBU by State",
-       fill = "") +
-  theme_minimal() +
-  guides(fill = FALSE) +
+colnames(median_abv_ibu)
+
+
+#make two separate plots, and sort by descending
+
+#ABV
+median_abv_ibu %>%
+  filter(measure == "median_abv_per") %>%
+  ggplot(aes(x = reorder(state, -value), y = value)) +
+  geom_bar(stat = "identity", fill = "darkolivegreen4") +
+  labs(title ="Median Alcohol by Volume for Each State",
+       x = "State",
+       y = "ABV (%)") +
+  scale_x_discrete(guide = guide_axis(angle = 90))  +
   NULL
+
+#IBU
+#make two separate plots, and sort by descending
+median_abv_ibu %>%
+  filter(measure == "median_ibu") %>%
+  ggplot(aes(x = reorder(state, -value), y = value)) +
+  geom_bar(stat = "identity", fill = "goldenrod1") +
+  labs(title ="Median IBU for Each State",
+       x = "State",
+       y = "IBU") +
+  scale_x_discrete(guide = guide_axis(angle = 90))  +
+  NULL
+
+
 ```
 
 ## Mapping the Data Instead
@@ -222,26 +237,67 @@ median_abv_ibu <- beer_brew %>%
   summarise(median_abv = median(abv, na.rm = TRUE),
             median_ibu = median(ibu, na.rm = TRUE)) %>% 
   rename(st = state) %>% 
-  mutate(state = tolower(state.name[match(st,state.abb)]))
+  mutate(state = tolower(state.name[match(st,state.abb)]),
+         median_abv_per = median_abv * 100)
 
 # Merge the state and beer data together
 median_map <- left_join(states_map, median_abv_ibu, by = c("region" = "state"))
+head(median_map)
 
 # Create the ABV map
-ggplot(median_map, aes(long, lat, group = group))+
-  geom_polygon(aes(fill = median_abv), color = "white")+
-  scale_fill_viridis_c(option = "C") +
-  labs(title = "Median ABV by State",
-       fill = "Median ABV") +
-  theme_void()
+#ggplot(median_map, aes(long, lat, group = group))+
+#  geom_polygon(aes(fill = median_abv), color = "white")+
+#  scale_fill_viridis_c(option = "C") +
+#  labs(title = "Median ABV by State",
+#       fill = "Median ABV") +
+#  theme_void()
 
 # Create the IBU map
+#p <- ggplot(median_map, aes(long, lat, group = group))+
+#  geom_polygon(aes(fill = median_ibu), color = "white")+
+#  scale_fill_viridis_c(option = "C") +
+#  labs(title = "Median IBU by State",
+#       fill = "Median IBU") +
+#  theme_void()
+
+
+# Use the map function to get the polygon data, then find the centroids
+state_poly <- map("state", plot=FALSE, fill = TRUE)
+#check state names
+state_poly$names
+
+state_centroids <- maps:::apply.polygon(state_poly, maps:::centroid.polygon)
+
+# Create a data frame for graphing out of the centroids of each polygon
+# with a non-missing name
+state_centroids <- state_centroids[!is.na(names(state_centroids))]
+centroid_array <- Reduce(rbind, state_centroids)
+dimnames(centroid_array) <- list(gsub("[^,]*,", "", names(state_centroids)),
+                                 c("long", "lat"))
+label_df <- as.data.frame(centroid_array)
+label_df$state <- rownames(label_df)
+#remove extra names
+label_df <- label_df[-c(23,34,36,37,38,40,53,54,56,57,58,59),]
+
+#join label data with median_abv_ibu value
+median_map_label <- left_join(label_df, median_abv_ibu, by = c("state" = "state"))
+head(median_map_label)
+
+#Median IBU with value
 ggplot(median_map, aes(long, lat, group = group))+
   geom_polygon(aes(fill = median_ibu), color = "white")+
-  scale_fill_viridis_c(option = "C") +
+  geom_text(data=median_map_label, aes(label=median_ibu, group=state)) +
+  scale_fill_viridis_c() +
   labs(title = "Median IBU by State",
-       fill = "Median IBU") +
-  theme_void()
+       fill = "Median IBU") 
+
+#Median ABV with value
+ggplot(median_map, aes(long, lat, group = group))+
+  geom_polygon(aes(fill = median_abv), color = "white")+
+  geom_text(data=median_map_label, aes(label=median_abv_per, group=state)) +
+  scale_fill_viridis_c() +
+  labs(title = "Median ABV by State",
+       fill = "Median ABV (%)") 
 ```
 
 5. Which state has the maximum alcoholic (ABV) beer? Which state has the most bitter (IBU) beer?
