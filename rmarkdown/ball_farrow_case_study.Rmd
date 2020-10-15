@@ -18,6 +18,7 @@ library(lindia)
 library(maps)
 library(viridis)
 library(caret)
+library(class)
 
 # Load Data ---------------------------------------------------------------
 
@@ -294,7 +295,8 @@ ggplot(median_map, aes(long, lat, group = group)) +
             size = 3) +
   scale_fill_viridis_c() +
   labs(title = "Median IBU by State",
-       fill = "Median IBU") 
+       fill = "Median IBU") +
+  theme_void()
 
 #Median ABV with value
 ggplot(median_map, aes(long, lat, group = group)) +
@@ -305,7 +307,8 @@ ggplot(median_map, aes(long, lat, group = group)) +
             size = 3) +
   scale_fill_viridis_c() +
   labs(title = "Median ABV by State",
-       fill = "Median ABV (%)") 
+       fill = "Median ABV (%)") +
+  theme_void()
 ```
 
 5. Which state has the maximum alcoholic (ABV) beer? Which state has the most bitter (IBU) beer?
@@ -330,14 +333,15 @@ beer_brew %>%
 summary(beer_brew_noNA)
 
 # Histogram of ABV
-beer_brew_noNA %>%
+beer_brew %>%
   ggplot(aes(x = abv)) +
   geom_histogram(fill = bud_red, color = "gray90") +
+  scale_x_continuous(label = percent) +
   ggtitle("Distribution of ABV") +
   theme_minimal()
 
 # Boxplot of ABV
-beer_brew_noNA %>%
+beer_brew %>%
   ggplot(aes(x = abv)) +
   geom_boxplot(
     outlier.colour = "red",
@@ -345,54 +349,54 @@ beer_brew_noNA %>%
     outlier.size = 2,
     fill = bud_red
   ) +
-  annotate(
-    geom = "curve",
-    x = 0.099,
-    y = -0.2,
-    xend = 0.05992,
-    yend = -0.1,
-    curvature = .3,
-    arrow = arrow(length = unit(2, "mm"))
-  ) +
-  annotate(
-    geom = "text",
-    x = 0.1,
-    y = -0.2,
-    label = "mean (0.05992)",
-    hjust = "left"
-  ) +
-  annotate(
-    geom = "curve",
-    x = 0.079,
-    y = -0.25,
-    xend = 0.057,
-    yend = -0.15,
-    curvature = -.4,
-    arrow = arrow(length = unit(2, "mm"))
-  ) +
-  annotate(
-    geom = "text",
-    x = 0.08,
-    y = -0.25,
-    label = "median (0.057)",
-    hjust = "left"
-  ) +
-    annotate(
-    geom = "curve",
-    x = 0.12,
-    y = 0.2,
-    xend = 0.125,
-    yend = 0,
-    curvature = -.4,
-    arrow = arrow(length = unit(2, "mm"))
-  ) +
-  annotate(
-    geom = "text",
-    x = 0.108,
-    y = 0.2,
-    label = "max (0.125)",
-    hjust = "left"
-  ) +
+# #  annotate(
+# #    geom = "curve",
+# #    x = 0.099,
+# #    y = -0.2,
+# #    xend = 0.05992,
+# #    yend = -0.1,
+# #    curvature = .3,
+#     arrow = arrow(length = unit(2, "mm"))
+#   ) +
+#   annotate(
+#     geom = "text",
+#     x = 0.1,
+#     y = -0.2,
+#     label = "mean (0.05992)",
+#     hjust = "left"
+#   ) +
+#   annotate(
+#     geom = "curve",
+#     x = 0.079,
+#     y = -0.25,
+#     xend = 0.057,
+#     yend = -0.15,
+#     curvature = -.4,
+#     arrow = arrow(length = unit(2, "mm"))
+#   ) +
+#   annotate(
+#     geom = "text",
+#     x = 0.08,
+#     y = -0.25,
+#     label = "median (0.057)",
+#     hjust = "left"
+#   ) +
+#     annotate(
+#     geom = "curve",
+#     x = 0.12,
+#     y = 0.2,
+#     xend = 0.125,
+#     yend = 0,
+#     curvature = -.4,
+#     arrow = arrow(length = unit(2, "mm"))
+#   ) +
+#   annotate(
+#     geom = "text",
+#     x = 0.108,
+#     y = 0.2,
+#     label = "max (0.125)",
+#     hjust = "left"
+#   ) +
   ggtitle("Distribution of ABV") +
   theme_minimal()
 ```
@@ -400,10 +404,10 @@ beer_brew_noNA %>%
 7. Is there an apparent relationship between the bitterness of the beer and its alcoholic content? Draw a scatter plot.  Make your best judgment of a relationship and EXPLAIN your answer.
 
 ```{r}
-beer_brew_noNA %>%
+beer_brew %>%
   ggplot(aes(x = ibu, y = abv)) +
   geom_jitter(alpha = 0.5) +
-  geom_smooth() +
+  geom_smooth(method = "lm") +
   labs(title = "Is there a relationship Between ABV and IBU?",
        x = "IBU",
        y = "ABV") +
@@ -426,6 +430,78 @@ ipa_ale <- beer_brew %>%
 
 # Set seed
 set.seed(123)
+
+#find optimum k for predicting beer type based on IBU and ABV
+iterations = 100
+numks = 30
+
+masterAcc = matrix(nrow = iterations, ncol = numks)
+
+for(j in 1:iterations)
+{
+  trainInd = sample(seq(1,642,1), .7*642)
+  train = ipa_ale[trainInd,]
+  test = ipa_ale[-trainInd,]
+  
+  for(i in 1:numks)
+  {
+    classifications = knn(train[,c(2,3)],test[,c(2,3)],train$style2,prob = TRUE, k = i)
+    CM = confusionMatrix(table(classifications,test$style2))
+    masterAcc[j,i] = CM$overall[1]
+  }
+  
+}
+
+MeanAcc = colMeans(masterAcc)
+
+plot(seq(1,numks,1),MeanAcc, type = "l")
+which.max(MeanAcc)
+
+```
+
+Based on this look for 30 different k's, we see the optimum accuracy is at k=4. However, k=5 has the same accuracy and we will use the odd value instead of tie breakers. Let's proceed to check k=5 using internal cross validation on our small data set.
+
+```{r}
+
+#run KNN with optimum k and internal CV
+AccHolder = numeric(100)
+SensHolder = numeric(100)
+SpecHolder = numeric(100)
+
+for (seed in 1:100)
+{
+set.seed(seed)
+trainIndices = sample(seq(1:length(ipa_ale$style2)),round(.7*length(ipa_ale$style2)))
+trainBeer = ipa_ale[trainIndices,]
+testBeer = ipa_ale[-trainIndices,]
+classifications = knn(trainBeer[,c(2,3)],testBeer[,c(2,3)],train$style2,prob = TRUE, k = 5)
+CM = confusionMatrix(table(classifications,test$style2))
+AccHolder[seed] = CM$overall[1]
+SensHolder[seed] = CM$byClass[1]
+SpecHolder[seed] = CM$byClass[2]
+}
+
+mean(AccHolder)
+#Standard Error of the Mean
+sd(AccHolder)/sqrt(100) 
+mean(SensHolder)
+#Standard Error of the Mean
+sd(SensHolder)/sqrt(100) 
+mean(SpecHolder)
+#Standard Error of the Mean
+sd(SensHolder)/sqrt(100)
+
+```
+With k=5, our average accuracy performance with 100 random splits is only 0.54. Let's revisit to find a better k.
+
+```{r}
+#run final model with k = ?
+
 ```
 
 9. Knock their socks off! Find one other useful inference from the data that you feel Budweiser may be able to find value in. You must convince them why it is important and back up your conviction with appropriate statistical evidence. 
+
+```{r}
+
+
+```
