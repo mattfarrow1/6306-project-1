@@ -244,7 +244,6 @@ median_abv_ibu <- beer_brew %>%
 median_map <- left_join(states_map, median_abv_ibu, by = c("region" = "state"))
 head(median_map)
 
-
 # Create the ABV map
 #ggplot(median_map, aes(long, lat, group = group))+
 #  geom_polygon(aes(fill = median_abv), color = "white")+
@@ -261,9 +260,8 @@ head(median_map)
 #       fill = "Median IBU") +
 #  theme_void()
 
-
 # Use the map function to get the polygon data, then find the centroids
-state_poly <- map("state",  plot=FALSE, fill = TRUE)
+state_poly <- maps::map("state",  plot=FALSE, fill = TRUE)
 #check state names
 state_poly$names
 
@@ -297,7 +295,8 @@ ggplot(median_map, aes(long, lat, group = group)) +
   scale_fill_viridis_c() +
   labs(title = "Median IBU by State",
        fill = "Median IBU") +
-  theme_void()
+  theme_void() +
+  guides(fill = FALSE)
 
 #Median ABV with value
 ggplot(median_map, aes(long, lat, group = group)) +
@@ -309,7 +308,8 @@ ggplot(median_map, aes(long, lat, group = group)) +
   scale_fill_viridis_c() +
   labs(title = "Median ABV by State",
        fill = "Median ABV (%)") +
-  theme_void()
+  theme_void() +
+  guides(fill = FALSE)
 ```
 
 5. Which state has the maximum alcoholic (ABV) beer? Which state has the most bitter (IBU) beer?
