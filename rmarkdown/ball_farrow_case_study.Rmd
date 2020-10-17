@@ -391,14 +391,15 @@ numks <- 30
 masterAcc <- matrix(nrow = iterations, ncol = numks)
 
 for (j in 1:iterations) {
-  trainInd <- sample(seq(1, 642, 1), .7 * 642)
+  # trainInd <- sample(seq(1, 642, 1), .7 * 642)
+  trainInd <- sample(1:dim(ipa_ale)[1], round(0.75 * dim(ipa_ale)[1]))
   train <- ipa_ale[trainInd,]
   test <- ipa_ale[-trainInd,]
   
   for (i in 1:numks)
   {
     classifications <-
-      knn(train[, c(2, 3)], test[, c(2, 3)], train$style2, prob = TRUE, k = i)
+      knn(train[, c(3, 4)], test[, c(3, 4)], train$style2, prob = TRUE, k = i)
     CM <- confusionMatrix(table(classifications, test$style2))
     masterAcc[j, i] <- CM$overall[1]
   }
@@ -418,13 +419,19 @@ AccHolder <- numeric(100)
 SensHolder <- numeric(100)
 SpecHolder <- numeric(100)
 
-for (seed in 1:100)
-{
+for (seed in 1:100) {
   set.seed(seed)
-  trainIndices <- sample(seq(1:length(ipa_ale$style2)), round(.7 * length(ipa_ale$style2)))
-  trainBeer <- ipa_ale[trainIndices, ]
-  testBeer <- ipa_ale[-trainIndices, ]
-  classifications <- knn(trainBeer[, c(2, 3)], testBeer[, c(2, 3)], train$style2, prob = TRUE, k = 5)
+  trainIndices <-
+    # sample(seq(1:length(ipa_ale$style2)), round(.7 * length(ipa_ale$style2)))
+    sample(1:dim(ipa_ale)[1], round(0.75 * dim(ipa_ale)[1]))
+  trainBeer <- ipa_ale[trainIndices,]
+  testBeer <- ipa_ale[-trainIndices,]
+  classifications <-
+    knn(trainBeer[, c(3, 4)],
+        testBeer[, c(3, 4)],
+        train$style2,
+        prob = TRUE,
+        k = 5)
   CM <- confusionMatrix(table(classifications, test$style2))
   AccHolder[seed] <- CM$overall[1]
   SensHolder[seed] <- CM$byClass[1]
