@@ -388,17 +388,17 @@ set.seed(123)
 iterations <- 100
 numks <- 30
 
-masterAcc = matrix(nrow = iterations, ncol = numks)
+masterAcc <- matrix(nrow = iterations, ncol = numks)
 
-for (j in 1:iterations)
-{
+for (j in 1:iterations) {
   trainInd <- sample(seq(1, 642, 1), .7 * 642)
-  train <- ipa_ale[trainInd, ]
-  test <- ipa_ale[-trainInd, ]
-
+  train <- ipa_ale[trainInd,]
+  test <- ipa_ale[-trainInd,]
+  
   for (i in 1:numks)
   {
-    classifications <- knn(train[, c(2, 3)], test[, c(2, 3)], train$style2, prob = TRUE, k = i)
+    classifications <-
+      knn(train[, c(2, 3)], test[, c(2, 3)], train$style2, prob = TRUE, k = i)
     CM <- confusionMatrix(table(classifications, test$style2))
     masterAcc[j, i] <- CM$overall[1]
   }
