@@ -3,7 +3,7 @@ title: '6306: Case Study 1'
 author: "Megan Ball, Matt Farrow"
 output: html_document
 editor_options: 
-  chunk_output_type: console
+  chunk_output_type: inline
 ---
 
 ```{r setup, include=FALSE}
@@ -11,7 +11,6 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Setup -------------------------------------------------------------------
 
-library(tidyverse)
 library(scales)
 library(gt)
 library(lindia)
@@ -19,6 +18,8 @@ library(maps)
 library(viridis)
 library(caret)
 library(class)
+library(dplyr)
+library(tidyverse)
 
 # Load Data ---------------------------------------------------------------
 
@@ -501,7 +502,75 @@ With k=5, our average accuracy performance with 100 random splits is only 0.54. 
 
 9. Knock their socks off! Find one other useful inference from the data that you feel Budweiser may be able to find value in. You must convince them why it is important and back up your conviction with appropriate statistical evidence. 
 
-```{r}
+Notes on items to look at:
+- IBU by style
+- IBU by region
+- Fewest breweries/state - market to tap into
+- Utah low ABV opp?
+- Predict ABV by style 
+- Plot 
 
+```{r}
+#additional EDA with size and ABV
+beer_brew %>%
+  ggplot(aes(x = ounces, y = abv)) +
+  geom_jitter(alpha = 0.5) +
+  geom_smooth(method = "lm") +
+  labs(title = "Is there a relationship Between ABV and size?",
+       x = "Ounces",
+       y = "ABV") +
+  theme_minimal()
+
+#bar chart by style - top 10
+beer_brew %>%
+  ggplot(aes(x = style)) +
+  geom_bar()
+#  labs(title = "Is there a relationship Between ABV and size?",
+#       x = "Ounces",
+#       y = "ABV") +
+#  theme_minimal()
+
+#all of the beer styles
+beer_brew$style <- as.factor(beer_brew$style)
+
+#most popular styles
+beer_brew %>% 
+  count(style) %>% 
+  rename(style_count = n) %>%
+  arrange(desc(style_count))
+  
+#what are the beers in Utah?
+beer_brew %>% 
+  filter(state == "UT")
+#26 total beers, three cities: Midvale, Moab, SLC
+
+beer_brew %>% 
+  filter(state == "UT") %>%
+  count(style) %>% 
+  rename(style_count = n) %>%
+  arrange(desc(style_count)) %>%
+  gt() %>%
+  tab_header(title = "Beer Styles in Utah")
+
+#what are the beers in ND, SD, WV with only one brewery?
+beer_brew %>% 
+  filter(state == "ND" | state == "SD" | state == "WV")
+
+#average ABV by style
+beer_brew %>% 
+  group_by(style) %>%
+  summarize(mean_abv = mean(abv) * 100,
+            count = n())
+
+#average IBU by style
+beer_brew %>% 
+  group_by(style) %>%
+  summarize(mean_ibu = mean(ibu),
+            count = n())
+
+#which states have the fewest/smallest variety of styles
+beer_brew %>% 
+  group_by(state, style) %>%
+  summarize(count = n())
 
 ```
