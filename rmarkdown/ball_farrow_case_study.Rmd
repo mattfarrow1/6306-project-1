@@ -20,6 +20,8 @@ library(caret)
 library(class)
 library(dplyr)
 library(tidyverse)
+#install.packages("robustHD")
+library(robustHD)
 
 # Load Data ---------------------------------------------------------------
 
@@ -381,6 +383,13 @@ ipa_ale <- beer_brew %>%
          abv,
          ibu)
 
+#make IPA or ALE a factor
+ipa_ale$style2 <- as.factor(ipa_ale$style2)
+
+#create new standardized data set for knn
+ipa_ale$abv_std <- standardize(ipa_ale$abv, centerFun = mean, scaleFun = sd)
+ipa_ale$ibu_std <- standardize(ipa_ale$ibu, centerFun = mean, scaleFun = sd)
+
 # Set seed
 set.seed(123)
 
@@ -399,7 +408,7 @@ for (j in 1:iterations) {
   for (i in 1:numks)
   {
     classifications <-
-      knn(train[, c(3, 4)], test[, c(3, 4)], train$style2, prob = TRUE, k = i)
+      knn(train[, c(5, 6)], test[, c(5, 6)], train$style2, prob = TRUE, k = i)
     CM <- confusionMatrix(table(classifications, test$style2))
     masterAcc[j, i] <- CM$overall[1]
   }
@@ -411,7 +420,7 @@ plot(seq(1, numks, 1), MeanAcc, type = "l")
 which.max(MeanAcc)
 ```
 
-Based on this look for 30 different k's, we see the optimum accuracy is at k=4. However, k=5 has the same accuracy and we will use the odd value instead of tie breakers. Let's proceed to check k=5 using internal cross validation on our small data set.
+Based on this look for 30 different k's, we see the optimum accuracy is at k=3. 
 
 ```{r}
 # Run KNN with optimum k and internal CV
@@ -427,11 +436,11 @@ for (seed in 1:100) {
   trainBeer <- ipa_ale[trainIndices,]
   testBeer <- ipa_ale[-trainIndices,]
   classifications <-
-    knn(trainBeer[, c(3, 4)],
-        testBeer[, c(3, 4)],
+    knn(trainBeer[, c(5, 6)],
+        testBeer[, c(5, 6)],
         train$style2,
         prob = TRUE,
-        k = 5)
+        k = 3)
   CM <- confusionMatrix(table(classifications, test$style2))
   AccHolder[seed] <- CM$overall[1]
   SensHolder[seed] <- CM$byClass[1]
@@ -451,10 +460,40 @@ mean(SpecHolder)
 # Standard Error of the Mean
 sd(SensHolder) / sqrt(100)
 ```
-With k=5, our average accuracy performance with 100 random splits is only 0.54. Let's revisit to find a better k.
+With k=3, our average accuracy performance with 100 random splits is only 0.52. Let's revisit to find a better k.
 
 ```{r}
-#run final model with k = ?
+#can we loop with both 100 splits and 30 k's?
+iterations <- 100
+numks <- 30
+
+masterAcc <- matrix(nrow = iterations, ncol = numks)
+
+for (j in 1:iterations) {
+  # trainInd <- sample(seq(1, 642, 1), .7 * 642)
+  set.seed(j)
+  trainInd <- sample(1:dim(ipa_ale)[1], round(0.75 * dim(ipa_ale)[1]))
+  train <- ipa_ale[trainInd,]
+  test <- ipa_ale[-trainInd,]
+  
+  for (i in 1:numks)
+  {
+    classifications <-
+      knn(train[, c(5, 6)], test[, c(5, 6)], train$style2, prob = TRUE, k = i)
+    CM <- confusionMatrix(table(classifications, test$style2))
+    masterAcc[j, i] <- CM$overall[1]
+  }
+}
+
+MeanAcc <- colMeans(masterAcc)
+
+plot(seq(1, numks, 1), MeanAcc, type = "l")
+which.max(MeanAcc)
+
+
+```
+
+```{r}
 
 ```
 
@@ -481,15 +520,6 @@ beer_brew %>%
   ) +
   theme_minimal()
 
-# Bar chart by style - top 10
-beer_brew %>%
-  ggplot(aes(x = style)) +
-  geom_bar()
-#  labs(title = "Is there a relationship Between ABV and size?",
-#       x = "Ounces",
-#       y = "ABV") +
-#  theme_minimal()
-
 # All of the beer styles
 beer_brew$style <- as.factor(beer_brew$style)
 
@@ -498,6 +528,22 @@ beer_brew %>%
   count(style) %>%
   rename(style_count = n) %>%
   arrange(desc(style_count))
+
+#plot bar graph of styles - adapted from Kaggle code
+beer_brew %>% 
+  group_by(style) %>% # Group by the beer style
+  summarise(count = n()) %>% # Count per group
+  filter(count > 25) %>% # Only the larger groups
+  ggplot(aes(reorder(style, count), count)) + # Reorder the bars
+  geom_col(fill = '#C8102E') + 
+  labs(
+    title = "Top Beer Styles in the US",
+    x = "Style",
+    y = "Count"
+  ) +
+  theme_minimal() + 
+  coord_flip()
+
 
 # What are the beers in Utah?
 beer_brew %>%
@@ -524,6 +570,21 @@ beer_brew %>%
     count = n()
   )
 
+#highest ABV beer styles
+beer_brew %>% 
+  group_by(style) %>% # Group by the beer style
+  summarise(ABV = mean(abv)) %>% # mean abv by style
+  filter(ABV > 0.068) %>% # Only the larger groups
+  ggplot(aes(reorder(style, ABV), ABV)) + # Reorder the bars
+  geom_col(fill = '#C8102E') + 
+  labs(
+    title = "Booziest Styles",
+    x = "Style",
+    y = "Mean ABV"
+  ) +
+  theme_minimal() + 
+  coord_flip()
+
 # Average IBU by style
 beer_brew %>%
   group_by(style) %>%
@@ -531,6 +592,23 @@ beer_brew %>%
     mean_ibu = mean(ibu),
     count = n()
   )
+
+#highest IBU beer styles
+beer_brew %>% 
+  group_by(style) %>% # Group by the beer style
+  summarise(IBU = mean(ibu)) %>% # mean abv by style
+  filter(IBU > 50) %>% # Only the larger groups
+  ggplot(aes(reorder(style, IBU), IBU)) + # Reorder the bars
+  geom_col(fill = '#C8102E') + 
+  labs(
+    title = "Most Bitter Styles",
+    x = "Style",
+    y = "Mean IBU"
+  ) +
+  theme_minimal() + 
+  coord_flip()
+
+#American Barleywine is most bitter but also very high in ABU
 
 # Which states have the fewest/smallest variety of styles
 beer_brew %>%
