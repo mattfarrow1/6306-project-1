@@ -244,7 +244,6 @@ median_abv_ibu <- beer_brew %>%
 median_map <- left_join(states_map, median_abv_ibu, by = c("region" = "state"))
 head(median_map)
 
-
 # Create the ABV map
 #ggplot(median_map, aes(long, lat, group = group))+
 #  geom_polygon(aes(fill = median_abv), color = "white")+
@@ -261,9 +260,8 @@ head(median_map)
 #       fill = "Median IBU") +
 #  theme_void()
 
-
 # Use the map function to get the polygon data, then find the centroids
-state_poly <- map("state",  plot=FALSE, fill = TRUE)
+state_poly <- maps::map("state",  plot=FALSE, fill = TRUE)
 #check state names
 state_poly$names
 
@@ -297,7 +295,8 @@ ggplot(median_map, aes(long, lat, group = group)) +
   scale_fill_viridis_c() +
   labs(title = "Median IBU by State",
        fill = "Median IBU") +
-  theme_void()
+  theme_void() +
+  guides(fill = FALSE)
 
 #Median ABV with value
 ggplot(median_map, aes(long, lat, group = group)) +
@@ -309,7 +308,8 @@ ggplot(median_map, aes(long, lat, group = group)) +
   scale_fill_viridis_c() +
   labs(title = "Median ABV by State",
        fill = "Median ABV (%)") +
-  theme_void()
+  theme_void() +
+  guides(fill = FALSE)
 ```
 
 5. Which state has the maximum alcoholic (ABV) beer? Which state has the most bitter (IBU) beer?
@@ -350,54 +350,6 @@ beer_brew %>%
     outlier.size = 2,
     fill = bud_red
   ) +
-# #  annotate(
-# #    geom = "curve",
-# #    x = 0.099,
-# #    y = -0.2,
-# #    xend = 0.05992,
-# #    yend = -0.1,
-# #    curvature = .3,
-#     arrow = arrow(length = unit(2, "mm"))
-#   ) +
-#   annotate(
-#     geom = "text",
-#     x = 0.1,
-#     y = -0.2,
-#     label = "mean (0.05992)",
-#     hjust = "left"
-#   ) +
-#   annotate(
-#     geom = "curve",
-#     x = 0.079,
-#     y = -0.25,
-#     xend = 0.057,
-#     yend = -0.15,
-#     curvature = -.4,
-#     arrow = arrow(length = unit(2, "mm"))
-#   ) +
-#   annotate(
-#     geom = "text",
-#     x = 0.08,
-#     y = -0.25,
-#     label = "median (0.057)",
-#     hjust = "left"
-#   ) +
-#     annotate(
-#     geom = "curve",
-#     x = 0.12,
-#     y = 0.2,
-#     xend = 0.125,
-#     yend = 0,
-#     curvature = -.4,
-#     arrow = arrow(length = unit(2, "mm"))
-#   ) +
-#   annotate(
-#     geom = "text",
-#     x = 0.108,
-#     y = 0.2,
-#     label = "max (0.125)",
-#     hjust = "left"
-#   ) +
   ggtitle("Distribution of ABV") +
   theme_minimal()
 ```
@@ -432,66 +384,72 @@ ipa_ale <- beer_brew %>%
 # Set seed
 set.seed(123)
 
-#find optimum k for predicting beer type based on IBU and ABV
-iterations = 100
-numks = 30
+# find optimum k for predicting beer type based on IBU and ABV
+iterations <- 100
+numks <- 30
 
-masterAcc = matrix(nrow = iterations, ncol = numks)
+masterAcc <- matrix(nrow = iterations, ncol = numks)
 
-for(j in 1:iterations)
-{
-  trainInd = sample(seq(1,642,1), .7*642)
-  train = ipa_ale[trainInd,]
-  test = ipa_ale[-trainInd,]
+for (j in 1:iterations) {
+  # trainInd <- sample(seq(1, 642, 1), .7 * 642)
+  trainInd <- sample(1:dim(ipa_ale)[1], round(0.75 * dim(ipa_ale)[1]))
+  train <- ipa_ale[trainInd,]
+  test <- ipa_ale[-trainInd,]
   
-  for(i in 1:numks)
+  for (i in 1:numks)
   {
-    classifications = knn(train[,c(2,3)],test[,c(2,3)],train$style2,prob = TRUE, k = i)
-    CM = confusionMatrix(table(classifications,test$style2))
-    masterAcc[j,i] = CM$overall[1]
+    classifications <-
+      knn(train[, c(3, 4)], test[, c(3, 4)], train$style2, prob = TRUE, k = i)
+    CM <- confusionMatrix(table(classifications, test$style2))
+    masterAcc[j, i] <- CM$overall[1]
   }
-  
 }
 
-MeanAcc = colMeans(masterAcc)
+MeanAcc <- colMeans(masterAcc)
 
-plot(seq(1,numks,1),MeanAcc, type = "l")
+plot(seq(1, numks, 1), MeanAcc, type = "l")
 which.max(MeanAcc)
-
 ```
 
 Based on this look for 30 different k's, we see the optimum accuracy is at k=4. However, k=5 has the same accuracy and we will use the odd value instead of tie breakers. Let's proceed to check k=5 using internal cross validation on our small data set.
 
 ```{r}
+# Run KNN with optimum k and internal CV
+AccHolder <- numeric(100)
+SensHolder <- numeric(100)
+SpecHolder <- numeric(100)
 
-#run KNN with optimum k and internal CV
-AccHolder = numeric(100)
-SensHolder = numeric(100)
-SpecHolder = numeric(100)
-
-for (seed in 1:100)
-{
-set.seed(seed)
-trainIndices = sample(seq(1:length(ipa_ale$style2)),round(.7*length(ipa_ale$style2)))
-trainBeer = ipa_ale[trainIndices,]
-testBeer = ipa_ale[-trainIndices,]
-classifications = knn(trainBeer[,c(2,3)],testBeer[,c(2,3)],train$style2,prob = TRUE, k = 5)
-CM = confusionMatrix(table(classifications,test$style2))
-AccHolder[seed] = CM$overall[1]
-SensHolder[seed] = CM$byClass[1]
-SpecHolder[seed] = CM$byClass[2]
+for (seed in 1:100) {
+  set.seed(seed)
+  trainIndices <-
+    # sample(seq(1:length(ipa_ale$style2)), round(.7 * length(ipa_ale$style2)))
+    sample(1:dim(ipa_ale)[1], round(0.75 * dim(ipa_ale)[1]))
+  trainBeer <- ipa_ale[trainIndices,]
+  testBeer <- ipa_ale[-trainIndices,]
+  classifications <-
+    knn(trainBeer[, c(3, 4)],
+        testBeer[, c(3, 4)],
+        train$style2,
+        prob = TRUE,
+        k = 5)
+  CM <- confusionMatrix(table(classifications, test$style2))
+  AccHolder[seed] <- CM$overall[1]
+  SensHolder[seed] <- CM$byClass[1]
+  SpecHolder[seed] <- CM$byClass[2]
 }
 
 mean(AccHolder)
-#Standard Error of the Mean
-sd(AccHolder)/sqrt(100) 
-mean(SensHolder)
-#Standard Error of the Mean
-sd(SensHolder)/sqrt(100) 
-mean(SpecHolder)
-#Standard Error of the Mean
-sd(SensHolder)/sqrt(100)
 
+# Standard Error of the Mean
+sd(AccHolder) / sqrt(100)
+mean(SensHolder)
+
+# Standard Error of the Mean
+sd(SensHolder) / sqrt(100)
+mean(SpecHolder)
+
+# Standard Error of the Mean
+sd(SensHolder) / sqrt(100)
 ```
 With k=5, our average accuracy performance with 100 random splits is only 0.54. Let's revisit to find a better k.
 
@@ -511,17 +469,19 @@ Notes on items to look at:
 - Plot 
 
 ```{r}
-#additional EDA with size and ABV
+# Additional EDA with size and ABV
 beer_brew %>%
   ggplot(aes(x = ounces, y = abv)) +
   geom_jitter(alpha = 0.5) +
   geom_smooth(method = "lm") +
-  labs(title = "Is there a relationship Between ABV and size?",
-       x = "Ounces",
-       y = "ABV") +
+  labs(
+    title = "Is there a relationship Between ABV and size?",
+    x = "Ounces",
+    y = "ABV"
+  ) +
   theme_minimal()
 
-#bar chart by style - top 10
+# Bar chart by style - top 10
 beer_brew %>%
   ggplot(aes(x = style)) +
   geom_bar()
@@ -530,46 +490,50 @@ beer_brew %>%
 #       y = "ABV") +
 #  theme_minimal()
 
-#all of the beer styles
+# All of the beer styles
 beer_brew$style <- as.factor(beer_brew$style)
 
-#most popular styles
-beer_brew %>% 
-  count(style) %>% 
+# Most popular styles
+beer_brew %>%
+  count(style) %>%
   rename(style_count = n) %>%
   arrange(desc(style_count))
-  
-#what are the beers in Utah?
-beer_brew %>% 
-  filter(state == "UT")
-#26 total beers, three cities: Midvale, Moab, SLC
 
-beer_brew %>% 
+# What are the beers in Utah?
+beer_brew %>%
+  filter(state == "UT")
+# 26 total beers, three cities: Midvale, Moab, SLC
+
+beer_brew %>%
   filter(state == "UT") %>%
-  count(style) %>% 
+  count(style) %>%
   rename(style_count = n) %>%
   arrange(desc(style_count)) %>%
   gt() %>%
   tab_header(title = "Beer Styles in Utah")
 
-#what are the beers in ND, SD, WV with only one brewery?
-beer_brew %>% 
+# What are the beers in ND, SD, WV with only one brewery?
+beer_brew %>%
   filter(state == "ND" | state == "SD" | state == "WV")
 
-#average ABV by style
-beer_brew %>% 
+# Average ABV by style
+beer_brew %>%
   group_by(style) %>%
-  summarize(mean_abv = mean(abv) * 100,
-            count = n())
+  summarize(
+    mean_abv = mean(abv) * 100,
+    count = n()
+  )
 
-#average IBU by style
-beer_brew %>% 
+# Average IBU by style
+beer_brew %>%
   group_by(style) %>%
-  summarize(mean_ibu = mean(ibu),
-            count = n())
+  summarize(
+    mean_ibu = mean(ibu),
+    count = n()
+  )
 
-#which states have the fewest/smallest variety of styles
-beer_brew %>% 
+# Which states have the fewest/smallest variety of styles
+beer_brew %>%
   group_by(state, style) %>%
   summarize(count = n())
 
