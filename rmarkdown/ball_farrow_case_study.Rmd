@@ -20,6 +20,8 @@ library(caret)
 library(class)
 library(dplyr)
 library(tidyverse)
+#install.packages("robustHD")
+library(robustHD)
 
 # Load Data ---------------------------------------------------------------
 
@@ -381,6 +383,13 @@ ipa_ale <- beer_brew %>%
          abv,
          ibu)
 
+#make IPA or ALE a factor
+ipa_ale$style2 <- as.factor(ipa_ale$style2)
+
+#create new standardized data set for knn
+ipa_ale$abv_std <- standardize(ipa_ale$abv, centerFun = mean, scaleFun = sd)
+ipa_ale$ibu_std <- standardize(ipa_ale$ibu, centerFun = mean, scaleFun = sd)
+
 # Set seed
 set.seed(123)
 
@@ -399,7 +408,7 @@ for (j in 1:iterations) {
   for (i in 1:numks)
   {
     classifications <-
-      knn(train[, c(3, 4)], test[, c(3, 4)], train$style2, prob = TRUE, k = i)
+      knn(train[, c(5, 6)], test[, c(5, 6)], train$style2, prob = TRUE, k = i)
     CM <- confusionMatrix(table(classifications, test$style2))
     masterAcc[j, i] <- CM$overall[1]
   }
@@ -411,7 +420,7 @@ plot(seq(1, numks, 1), MeanAcc, type = "l")
 which.max(MeanAcc)
 ```
 
-Based on this look for 30 different k's, we see the optimum accuracy is at k=1. 
+Based on this look for 30 different k's, we see the optimum accuracy is at k=3. 
 
 ```{r}
 # Run KNN with optimum k and internal CV
@@ -427,81 +436,8 @@ for (seed in 1:100) {
   trainBeer <- ipa_ale[trainIndices,]
   testBeer <- ipa_ale[-trainIndices,]
   classifications <-
-    knn(trainBeer[, c(3, 4)],
-        testBeer[, c(3, 4)],
-        train$style2,
-        prob = TRUE,
-        k = 1)
-  CM <- confusionMatrix(table(classifications, test$style2))
-  AccHolder[seed] <- CM$overall[1]
-  SensHolder[seed] <- CM$byClass[1]
-  SpecHolder[seed] <- CM$byClass[2]
-}
-
-mean(AccHolder)
-
-# Standard Error of the Mean
-sd(AccHolder) / sqrt(100)
-mean(SensHolder)
-
-# Standard Error of the Mean
-sd(SensHolder) / sqrt(100)
-mean(SpecHolder)
-
-# Standard Error of the Mean
-sd(SensHolder) / sqrt(100)
-```
-With k=1, our average accuracy performance with 100 random splits is only 0.52. Let's revisit to find a better k.
-
-```{r}
-#can we loop with both 100 splits and 30 k's?
-iterations <- 100
-numks <- 30
-
-masterAcc <- matrix(nrow = iterations, ncol = numks)
-
-for (j in 1:iterations) {
-  # trainInd <- sample(seq(1, 642, 1), .7 * 642)
-  set.seed(j)
-  trainInd <- sample(1:dim(ipa_ale)[1], round(0.75 * dim(ipa_ale)[1]))
-  train <- ipa_ale[trainInd,]
-  test <- ipa_ale[-trainInd,]
-  
-  for (i in 1:numks)
-  {
-    classifications <-
-      knn(train[, c(3, 4)], test[, c(3, 4)], train$style2, prob = TRUE, k = i)
-    CM <- confusionMatrix(table(classifications, test$style2))
-    masterAcc[j, i] <- CM$overall[1]
-  }
-}
-
-MeanAcc <- colMeans(masterAcc)
-
-plot(seq(1, numks, 1), MeanAcc, type = "l")
-which.max(MeanAcc)
-
-
-```
-
-```{r}
-#run with k = 3
-
-# Run KNN with optimum k and internal CV
-AccHolder <- numeric(100)
-SensHolder <- numeric(100)
-SpecHolder <- numeric(100)
-
-for (seed in 1:100) {
-  set.seed(seed)
-  trainIndices <-
-    # sample(seq(1:length(ipa_ale$style2)), round(.7 * length(ipa_ale$style2)))
-    sample(1:dim(ipa_ale)[1], round(0.75 * dim(ipa_ale)[1]))
-  trainBeer <- ipa_ale[trainIndices,]
-  testBeer <- ipa_ale[-trainIndices,]
-  classifications <-
-    knn(trainBeer[, c(3, 4)],
-        testBeer[, c(3, 4)],
+    knn(trainBeer[, c(5, 6)],
+        testBeer[, c(5, 6)],
         train$style2,
         prob = TRUE,
         k = 3)
@@ -523,6 +459,41 @@ mean(SpecHolder)
 
 # Standard Error of the Mean
 sd(SensHolder) / sqrt(100)
+```
+With k=3, our average accuracy performance with 100 random splits is only 0.52. Let's revisit to find a better k.
+
+```{r}
+#can we loop with both 100 splits and 30 k's?
+iterations <- 100
+numks <- 30
+
+masterAcc <- matrix(nrow = iterations, ncol = numks)
+
+for (j in 1:iterations) {
+  # trainInd <- sample(seq(1, 642, 1), .7 * 642)
+  set.seed(j)
+  trainInd <- sample(1:dim(ipa_ale)[1], round(0.75 * dim(ipa_ale)[1]))
+  train <- ipa_ale[trainInd,]
+  test <- ipa_ale[-trainInd,]
+  
+  for (i in 1:numks)
+  {
+    classifications <-
+      knn(train[, c(5, 6)], test[, c(5, 6)], train$style2, prob = TRUE, k = i)
+    CM <- confusionMatrix(table(classifications, test$style2))
+    masterAcc[j, i] <- CM$overall[1]
+  }
+}
+
+MeanAcc <- colMeans(masterAcc)
+
+plot(seq(1, numks, 1), MeanAcc, type = "l")
+which.max(MeanAcc)
+
+
+```
+
+```{r}
 
 ```
 
