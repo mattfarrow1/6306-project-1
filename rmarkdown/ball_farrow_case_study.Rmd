@@ -48,6 +48,8 @@ Briefly explain the purpose of the code. The explanations should appear as a sen
 
 # Analysis Questions
 
+## Breweries by State
+
 1. How many breweries are present in each state?
 
 ```{r breweries-per-state}
@@ -119,6 +121,8 @@ breweries %>%
              n = "Breweries") 
 ```
 
+## Merge Beer & Breweries
+
 2. Merge beer data with the breweries data. Print the first 6 observations and the last six observations to check the merged file.  (RMD only, this does not need to be included in the presentation or the deck.)
 
 ```{r merge-beer-brew}
@@ -141,6 +145,8 @@ beer_brew %>%
   gt() %>% 
   tab_header(title = "Last Six Observations")
 ```
+
+## Address Missing Values
 
 3. Address the missing values in each column.
 
@@ -182,6 +188,8 @@ beer_brew$ibu[is.nan(beer_brew$ibu)] <- NA
 # Drop remaining rows with missing values
 beer_brew <- na.omit(beer_brew)
 ```
+
+## Median ABV & IBU
 
 4. Compute the median alcohol content and international bitterness unit for each state. Plot a bar chart to compare.
 
@@ -313,6 +321,8 @@ ggplot(median_map, aes(long, lat, group = group)) +
   guides(fill = FALSE)
 ```
 
+## Max ABV & IBU
+
 5. Which state has the maximum alcoholic (ABV) beer? Which state has the most bitter (IBU) beer?
 
 ```{r}
@@ -367,6 +377,8 @@ beer_brew %>%
        y = "ABV") +
   theme_minimal()
 ```
+
+## KNN
 
 8. Budweiser would also like to investigate the difference with respect to IBU and ABV between IPAs (India Pale Ales) and other types of Ale (any beer with “Ale” in its name other than IPA). You decide to use KNN classification to investigate this relationship. Provide statistical evidence one way or the other. You can of course assume your audience is comfortable with percentages...KNN is very easy to understand conceptually.
 
@@ -493,6 +505,8 @@ which.max(MeanAcc)
 ```{r}
 
 ```
+
+## Knock Their Socks Off
 
 9. Knock their socks off! Find one other useful inference from the data that you feel Budweiser may be able to find value in. You must convince them why it is important and back up your conviction with appropriate statistical evidence. 
 
