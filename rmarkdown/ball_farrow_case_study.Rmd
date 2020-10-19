@@ -20,7 +20,7 @@ library(caret)
 library(class)
 library(dplyr)
 library(tidyverse)
-#install.packages("robustHD")
+# install.packages("robustHD")
 library(robustHD)
 
 # Load Data ---------------------------------------------------------------
@@ -173,7 +173,8 @@ impute_mean <- function(x) {
 # Calculate mean ibu
 beer_brew <- beer_brew %>% 
   group_by(style) %>% 
-  mutate_at(vars(ibu), impute_mean)
+  mutate_at(vars(ibu), impute_mean) %>% 
+  ungroup()
 
 # Replace NaN with NA
 beer_brew$ibu[is.nan(beer_brew$ibu)] <- NA
@@ -199,7 +200,6 @@ median_abv_ibu <- beer_brew %>%
 
 colnames(median_abv_ibu)
 
-
 #make two separate plots, and sort by descending
 
 #ABV
@@ -214,7 +214,6 @@ median_abv_ibu %>%
   NULL
 
 #IBU
-#make two separate plots, and sort by descending
 median_abv_ibu %>%
   filter(measure == "median_ibu") %>%
   ggplot(aes(x = reorder(state, -value), y = value)) +
@@ -376,15 +375,15 @@ In addition, while you have decided to use KNN to investigate this relationship 
 ```{r}
 # Create data set of just "IPA" and "Ale"
 ipa_ale <- beer_brew %>% 
-  mutate(style2 = case_when(str_detect(style, "IPA") ~ "IPA",
-                            str_detect(style, "ale") ~ "Ale")) %>% 
+  mutate(style2 = as_factor(case_when(str_detect(style, "IPA") ~ "IPA",
+                                      str_detect(style, "ale") ~ "Ale"))) %>% 
   filter(!is.na(style2)) %>% 
   select(style2,
          abv,
          ibu)
 
-#make IPA or ALE a factor
-ipa_ale$style2 <- as.factor(ipa_ale$style2)
+# Make IPA or ALE a factor
+# ipa_ale$style2 <- as.factor(ipa_ale$style2)
 
 #create new standardized data set for knn
 ipa_ale$abv_std <- standardize(ipa_ale$abv, centerFun = mean, scaleFun = sd)
@@ -408,7 +407,7 @@ for (j in 1:iterations) {
   for (i in 1:numks)
   {
     classifications <-
-      knn(train[, c(5, 6)], test[, c(5, 6)], train$style2, prob = TRUE, k = i)
+      knn(train[, c(2, 3)], test[, c(2, 3)], train$style2, prob = TRUE, k = i)
     CM <- confusionMatrix(table(classifications, test$style2))
     masterAcc[j, i] <- CM$overall[1]
   }
@@ -436,8 +435,8 @@ for (seed in 1:100) {
   trainBeer <- ipa_ale[trainIndices,]
   testBeer <- ipa_ale[-trainIndices,]
   classifications <-
-    knn(trainBeer[, c(5, 6)],
-        testBeer[, c(5, 6)],
+    knn(trainBeer[, c(2, 3)],
+        testBeer[, c(2, 3)],
         train$style2,
         prob = TRUE,
         k = 3)
@@ -463,7 +462,7 @@ sd(SensHolder) / sqrt(100)
 With k=3, our average accuracy performance with 100 random splits is only 0.52. Let's revisit to find a better k.
 
 ```{r}
-#can we loop with both 100 splits and 30 k's?
+# Can we loop with both 100 splits and 30 k's?
 iterations <- 100
 numks <- 30
 
@@ -479,7 +478,7 @@ for (j in 1:iterations) {
   for (i in 1:numks)
   {
     classifications <-
-      knn(train[, c(5, 6)], test[, c(5, 6)], train$style2, prob = TRUE, k = i)
+      knn(train[, c(2, 3)], test[, c(2, 3)], train$style2, prob = TRUE, k = i)
     CM <- confusionMatrix(table(classifications, test$style2))
     masterAcc[j, i] <- CM$overall[1]
   }
@@ -489,8 +488,6 @@ MeanAcc <- colMeans(masterAcc)
 
 plot(seq(1, numks, 1), MeanAcc, type = "l")
 which.max(MeanAcc)
-
-
 ```
 
 ```{r}
@@ -500,12 +497,13 @@ which.max(MeanAcc)
 9. Knock their socks off! Find one other useful inference from the data that you feel Budweiser may be able to find value in. You must convince them why it is important and back up your conviction with appropriate statistical evidence. 
 
 Notes on items to look at:
-- IBU by style
-- IBU by region
-- Fewest breweries/state - market to tap into
-- Utah low ABV opp?
-- Predict ABV by style 
-- Plot 
+
+- IBU by style  
+- IBU by region  
+- Fewest breweries/state - market to tap into  
+- Utah low ABV opp?  
+- Predict ABV by style   
+- Plot  
 
 ```{r}
 # Additional EDA with size and ABV
@@ -529,7 +527,7 @@ beer_brew %>%
   rename(style_count = n) %>%
   arrange(desc(style_count))
 
-#plot bar graph of styles - adapted from Kaggle code
+# Plot bar graph of styles - adapted from Kaggle code
 beer_brew %>% 
   group_by(style) %>% # Group by the beer style
   summarise(count = n()) %>% # Count per group
@@ -570,7 +568,7 @@ beer_brew %>%
     count = n()
   )
 
-#highest ABV beer styles
+# Highest ABV beer styles
 beer_brew %>% 
   group_by(style) %>% # Group by the beer style
   summarise(ABV = mean(abv)) %>% # mean abv by style
@@ -593,7 +591,7 @@ beer_brew %>%
     count = n()
   )
 
-#highest IBU beer styles
+#Highest IBU beer styles
 beer_brew %>% 
   group_by(style) %>% # Group by the beer style
   summarise(IBU = mean(ibu)) %>% # mean abv by style
@@ -608,11 +606,37 @@ beer_brew %>%
   theme_minimal() + 
   coord_flip()
 
-#American Barleywine is most bitter but also very high in ABU
+# American Barleywine is most bitter but also very high in ABU
 
 # Which states have the fewest/smallest variety of styles
 beer_brew %>%
   group_by(state, style) %>%
-  summarize(count = n())
-
+  summarize(count = n()) %>% 
+  ungroup()
 ```
+
+```{r}
+beer_brew %>% 
+  mutate(style2 = as_factor(case_when(str_detect(style, "IPA") ~ "IPA",
+                                      str_detect(style, "ale") ~ "Ale"))) %>% 
+  filter(style2 == "IPA") %>% 
+  count(state) %>% 
+  rename(st = state,
+         ipas = n) %>% 
+  mutate(region = tolower(state.name[match(st,state.abb)]),
+         ipa_bucket = cut(ipas,
+                          breaks = c(-Inf, 0, 10, 20, 30, 40, 50, Inf),
+                          labels = c("None", "1-9", "10-19", "20-29", "30-39", "40-49", "50+"),
+                          ordered_result = TRUE)) %>% 
+  filter(!is.na(region)) %>% 
+  right_join(map_data("state")) %>% 
+  ggplot(aes(long, lat, group = group)) +
+  geom_polygon(aes(fill = ipa_bucket), color = "white") +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "Middle America Offers IPA Market",
+       subtitle = "few craft brew selections present an untapped market",
+       fill = "IPAs") +
+  theme_void() +
+  theme(legend.position = "bottom")
+```
+
