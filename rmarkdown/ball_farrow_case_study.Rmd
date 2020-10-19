@@ -156,18 +156,18 @@ colSums(is.na(beer_brew))
 # Since our question of interest involves prediction based on abv and ibu, we may
 # want to do it two ways: straight up remove the NA's and then also impute them
 
-# Removed NA
-beer_brew_noNA <- na.omit(beer_brew)
-#Down to 1403 obs versus 2410
-
-# Check to see if we should impute based on style or abv
-ggplot(beer_brew, aes(abv, ibu)) +
-  geom_jitter(alpha = 0.4, color = bud_red) +
-  geom_smooth(method = "lm") +
-  labs(title = "Relationship between ABV & IBU",
-       x = "Alcohol by Volume (abv)",
-       y = "International Bitterness Units (IBU)") +
-  theme_minimal()
+# # Removed NA
+# beer_brew_noNA <- na.omit(beer_brew)
+# #Down to 1403 obs versus 2410
+# 
+# # Check to see if we should impute based on style or abv
+# ggplot(beer_brew, aes(abv, ibu)) +
+#   geom_jitter(alpha = 0.4, color = bud_red) +
+#   geom_smooth(method = "lm") +
+#   labs(title = "Relationship between ABV & IBU",
+#        x = "Alcohol by Volume (abv)",
+#        y = "International Bitterness Units (IBU)") +
+#   theme_minimal()
 
 # Impute mean
 impute_mean <- function(x) {
@@ -176,10 +176,10 @@ impute_mean <- function(x) {
   as.numeric(x)
 }
 
-# Calculate mean ibu
+# Calculate mean ibu & abv
 beer_brew <- beer_brew %>% 
   group_by(style) %>% 
-  mutate_at(vars(ibu), impute_mean) %>% 
+  mutate_at(vars(ibu, abv), impute_mean) %>% 
   ungroup()
 
 # Replace NaN with NA
@@ -394,9 +394,6 @@ ipa_ale <- beer_brew %>%
          abv,
          ibu)
 
-# Make IPA or ALE a factor
-# ipa_ale$style2 <- as.factor(ipa_ale$style2)
-
 #create new standardized data set for knn
 ipa_ale$abv_std <- standardize(ipa_ale$abv, centerFun = mean, scaleFun = sd)
 ipa_ale$ibu_std <- standardize(ipa_ale$ibu, centerFun = mean, scaleFun = sd)
@@ -411,7 +408,6 @@ numks <- 30
 masterAcc <- matrix(nrow = iterations, ncol = numks)
 
 for (j in 1:iterations) {
-  # trainInd <- sample(seq(1, 642, 1), .7 * 642)
   trainInd <- sample(1:dim(ipa_ale)[1], round(0.75 * dim(ipa_ale)[1]))
   train <- ipa_ale[trainInd,]
   test <- ipa_ale[-trainInd,]
@@ -419,7 +415,7 @@ for (j in 1:iterations) {
   for (i in 1:numks)
   {
     classifications <-
-      knn(train[, c(2, 3)], test[, c(2, 3)], train$style2, prob = TRUE, k = i)
+      knn(train[, c(2, 3)], test[, c(2, 3)], train$style2, prob = TRUE, k = i, use.all = TRUE)
     CM <- confusionMatrix(table(classifications, test$style2))
     masterAcc[j, i] <- CM$overall[1]
   }
@@ -482,7 +478,7 @@ masterAcc <- matrix(nrow = iterations, ncol = numks)
 
 for (j in 1:iterations) {
   # trainInd <- sample(seq(1, 642, 1), .7 * 642)
-  set.seed(j)
+  # set.seed(j)
   trainInd <- sample(1:dim(ipa_ale)[1], round(0.75 * dim(ipa_ale)[1]))
   train <- ipa_ale[trainInd,]
   test <- ipa_ale[-trainInd,]
@@ -500,10 +496,6 @@ MeanAcc <- colMeans(masterAcc)
 
 plot(seq(1, numks, 1), MeanAcc, type = "l")
 which.max(MeanAcc)
-```
-
-```{r}
-
 ```
 
 ## Knock Their Socks Off
