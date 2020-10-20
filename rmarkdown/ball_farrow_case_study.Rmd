@@ -3,60 +3,50 @@ title: '6306: Case Study 1'
 author: "Megan Ball, Matt Farrow"
 output: html_document
 editor_options: 
-  chunk_output_type: inline
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
-# Setup -------------------------------------------------------------------
-
-library(scales)
-library(gt)
-library(lindia)
-library(maps)
-library(viridis)
-library(caret)
-library(class)
-library(dplyr)
-library(tidyverse)
-# install.packages("robustHD")
-library(robustHD)
-
-# Load Data ---------------------------------------------------------------
-
-beers <- read_csv(here::here("data - raw", "Beers.csv"))
-beers <- janitor::clean_names(beers)
-
-breweries <- read_csv(here::here("data - raw", "Breweries.csv"))
-breweries <- janitor::clean_names(breweries)
-
-bud_red <- "#C8102E"
+# Load libraries
+library(scales)    # to format percentages on charts and graphs
+library(gt)        # to create nicely formatted tables
+library(lindia)    # for creating covariance matrices
+library(maps)      # for creating maps
+library(viridis)   # chart colors
+library(caret)     # to create knn model
+library(class)     # 
+library(dplyr)     # for data wrangling
+library(tidyverse) # for data wrangling and plotting
+library(robustHD)  #
 ```
 
 ```{r echo=FALSE, out.width="50%", fig.align='center'}
 knitr::include_graphics("http://kingoftheflatscreen.com/wp-content/uploads/2015/01/budweiser-logo_1600x1200_83-standard.jpg")
 ```
 
-# Background
+# Setup
 
-The introduction needs to be written as if you are presenting the work to the CEO and CFO of Budweiser (your client) and that they only have had one class in statistics.  If it sounds like a student presentation, that is not acceptable.  You may assume that the CEO and CFO gave you the data and gave you the directive to report any interesting finding that you may uncover through your analysis.
+```{r}
+# Load beers and clean column names
+beers <- read_csv(here::here("data - raw", "Beers.csv"))
+beers <- janitor::clean_names(beers)
 
-# Instructions
+# Load breweries and clean column names
+breweries <- read_csv(here::here("data - raw", "Breweries.csv"))
+breweries <- janitor::clean_names(breweries)
 
-Briefly explain the purpose of the code. The explanations should appear as a sentence or two before or after the code chunk. Even though you will not be hiding the code chunks (so that I can see the code), you need to assume that the client can’t see them.
+# Define "Budweiser Red"
+bud_red <- "#C8102E"
+```
 
-# Analysis Questions
+## How many breweries are present in each state?
 
-## Breweries by State
-
-1. How many breweries are present in each state?
+In addition to producing a table of the count of breweries in each state, we also created a map to visualize the distribution of breweries around the country.
 
 ```{r breweries-per-state}
-# Retrieve the states map data and merge with median data
-states_map <- map_data("state")
-
-# Breweries by state
+# Count the breweries by state
 breweries_by_st <- breweries %>% 
   count(state) %>% 
   rename(brewery_count = n,
@@ -66,7 +56,7 @@ breweries_by_st <- breweries %>%
   select(state, brewery_count)
 
 # Merge states map with brewery data
-breweries_by_st_map <- left_join(states_map, breweries_by_st, by = c("region" = "state"))
+breweries_by_st_map <- left_join(map_data("state"), breweries_by_st, by = c("region" = "state"))
 
 # Create the breweries by state map
 ggplot(breweries_by_st_map, aes(long, lat, group = group)) +
@@ -74,9 +64,21 @@ ggplot(breweries_by_st_map, aes(long, lat, group = group)) +
   scale_fill_viridis_c(option = "inferno") +
   labs(title = "Breweries by State",
        fill = "") +
-  theme_void()
+  coord_map() +
+  theme_void() +
+  theme(
+    panel.background = element_rect(fill = "#f3f3f2"),             #F3F3F2 is the color of the PowerPoint slide backgroud for this chart
+    plot.background = element_rect(fill = "#f3f3f2", color = NA),
+  )
 
-# Number of Breweries by State
+# Save a copy of the map to the images folder
+# ggsave(here::here("images", "breweries by state.png"), dpi = "retina")
+
+# Create a table of the number of breweries by state
+# ⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼
+# Because there isn't a clean way to wrap columns using the gt() function, we've
+# split the data into three separate data sets then bound the columns of each
+# set back together to simulate three columns of data.
 by_st1 <- breweries_by_st %>% 
   arrange(desc(brewery_count)) %>% 
   slice(1:17)
@@ -100,7 +102,7 @@ bind_cols(by_st1,
              `brewery_count...6` = "Count") %>%
   {.}
 
-#Top Ten States
+# Create a table of the top 10 states for breweries
 breweries %>% 
   count(state) %>% 
   arrange(desc(n)) %>%
@@ -110,7 +112,7 @@ breweries %>%
   cols_label(state = "State",
              n = "Breweries") 
 
-#Lowest Ten States
+# Create a table of the bottom 10 states for breweries
 breweries %>% 
   count(state) %>% 
   arrange(n) %>%
@@ -121,14 +123,15 @@ breweries %>%
              n = "Breweries") 
 ```
 
-## Merge Beer & Breweries
+## Merge Beer & Breweries Data
 
-2. Merge beer data with the breweries data. Print the first 6 observations and the last six observations to check the merged file.  (RMD only, this does not need to be included in the presentation or the deck.)
+After taking a look at the brewery data, we next merged it with the beer data in order to start our analysis of alcohol by volume (ABV) and international bitterness units (IBU). We'll take a look at the data after we merged it to make sure everything looks ok. 
 
 ```{r merge-beer-brew}
+# Merge the beer and brewery data sets
 beer_brew <- left_join(beers, breweries, by = c("brewery_id" = "brew_id"))
 
-# Clean up column names
+# Clean up column names post-merge
 beer_brew <- beer_brew %>% 
   rename(beer_name = name.x,
          brewery_name = name.y)
@@ -148,78 +151,56 @@ beer_brew %>%
 
 ## Address Missing Values
 
-3. Address the missing values in each column.
+Now that the data was successfully merged together, we began the process of investigating and addressing the missing values in the data set. Unfortunately there are a number of missing values, particularly when it comes to ABV and IBU. After examining the histograms for those two variables, we made two decisions. The first was to exclude cider and mead from the analysis because they are not beer. The second was to impute the mean ABV and IBU value by beer style for all missing values of those variables. We felt that offered the best balance between not losing observations and staying true to the beer's style. Our final task for this question was to simply remove any remaining observations with missing values.
 
 ```{r address-na}
+# How many missing values do we currently have in the data?
 colSums(is.na(beer_brew))
 
-# Since our question of interest involves prediction based on abv and ibu, we may
-# want to do it two ways: straight up remove the NA's and then also impute them
-
-# # Removed NA
-# beer_brew_noNA <- na.omit(beer_brew)
-# #Down to 1403 obs versus 2410
-# 
-# # Check to see if we should impute based on style or abv
-# ggplot(beer_brew, aes(abv, ibu)) +
-#   geom_jitter(alpha = 0.4, color = bud_red) +
-#   geom_smooth(method = "lm") +
-#   labs(title = "Relationship between ABV & IBU",
-#        x = "Alcohol by Volume (abv)",
-#        y = "International Bitterness Units (IBU)") +
-#   theme_minimal()
-
-#distribution of ABV and IBU before imputation
+# What is the distribution of ABV and IBU before imputation?
 hist(beer_brew$abv)
 hist(beer_brew$ibu)
 
-#check which styles are NA for ABV and IBU
+# Check which styles are NA for ABV and IBU
 filter(beer_brew, ibu == "NaN")
 filter(beer_brew, abv == "NaN")
 
-
-#get rid of cider and mead because they are not beer
+# Get rid of cider and mead because they are not beer
 beer_brew <- beer_brew %>%
   filter((style != "Cider") & (style != "Mead"))
 
-# Impute mean
+# Create a function to impute the mean
 impute_mean <- function(x) {
   ind_na <- is.na(x)
   x[ind_na] <- mean(x[!ind_na])
   as.numeric(x)
 }
 
-# Calculate mean ibu & abv
+# Calculate mean IBU & ABV
 beer_brew <- beer_brew %>% 
   group_by(style) %>% 
   mutate_at(vars(ibu, abv), impute_mean) %>% 
   ungroup()
 
-# Calculate mean abv
-beer_brew <- beer_brew %>% 
-  group_by(style) %>% 
-  mutate_at(vars(abv), impute_mean) %>% 
-  ungroup()
-
-#distribution of ABV and IBU after imputation
+# Distribution of ABV and IBU after imputation
 hist(beer_brew$abv)
 hist(beer_brew$ibu)
 
-# check for any remaining NA
+# Check for any remaining NA
 colSums(is.na(beer_brew))
 
-#still a stubborn 10 rows that are NA - this is because these styles don't have IBU. Remove these rows
+# Still a stubborn 10 rows that are NA - this is because these styles don't have
+# IBU. Remove these rows
 beer_brew <- beer_brew %>% 
   drop_na(ibu)
 
-# check for any remaining NA
+# Check for any remaining NA
 colSums(is.na(beer_brew))
-
 ```
 
 ## Median ABV & IBU
 
-4. Compute the median alcohol content and international bitterness unit for each state. Plot a bar chart to compare.
+Using our merged data, we created a new data set to investigate the distribution of median ABV and IBU by state. For this question we made the decision to use histograms that were arranged in descending order from largest median to the smallest. 
 
 ```{r median-abv-ibu}
 # Median ABV & IBU
@@ -234,11 +215,7 @@ median_abv_ibu <- beer_brew %>%
   ungroup() %>% 
   pivot_longer(cols = c(3,5), names_to = "measure")
 
-colnames(median_abv_ibu)
-
-#make two separate plots, and sort by descending
-
-#ABV
+# ABV Histogram
 median_abv_ibu %>%
   filter(measure == "median_abv_per") %>%
   ggplot(aes(x = reorder(state, -value), y = value)) +
@@ -247,9 +224,19 @@ median_abv_ibu %>%
        x = "State",
        y = "ABV (%)") +
   scale_x_discrete(guide = guide_axis(angle = 90))  +
+  theme_minimal() +
   NULL
 
-#IBU
+# Save the ABV histogram to the images folder
+# ggsave(
+#   here::here("images", "median abv by state.png"),
+#   dpi = "retina",
+#   width = 10,
+#   height = 3,
+#   units = "in"
+# )
+
+# IBU Histogram
 median_abv_ibu %>%
   filter(measure == "median_ibu") %>%
   ggplot(aes(x = reorder(state, -value), y = value)) +
@@ -258,15 +245,24 @@ median_abv_ibu %>%
        x = "State",
        y = "IBU") +
   scale_x_discrete(guide = guide_axis(angle = 90))  +
+  theme_minimal() +
   NULL
+
+# Save the ABV histogram to the images folder
+# ggsave(
+#   here::here("images", "median ibu by state.png"),
+#   dpi = "retina",
+#   width = 10,
+#   height = 3,
+#   units = "in"
+# )
 ```
 
-## Mapping the Data Instead
+### Mapping the Data Instead
+
+While the histograms offer a quick look at the median distribution and an assessment of which state has the highest and lowest median values, we also thought it would be interesting to once again map the data to see if there were regional trends that might be hiding in the data. 
 
 ```{r}
-# Retrieve the states map data 
-states_map <- map_data("state")
-
 # Re-make the median_abv_ibu data set without the pivot longer and highlights
 median_abv_ibu <- beer_brew %>% 
   filter(state != "DC") %>% 
@@ -278,30 +274,12 @@ median_abv_ibu <- beer_brew %>%
          median_abv_per = median_abv * 100)
 
 # Merge the state and beer data together
-median_map <- left_join(states_map, median_abv_ibu, by = c("region" = "state"))
-head(median_map)
-
-# Create the ABV map
-#ggplot(median_map, aes(long, lat, group = group))+
-#  geom_polygon(aes(fill = median_abv), color = "white")+
-#  scale_fill_viridis_c(option = "C") +
-#  labs(title = "Median ABV by State",
-#       fill = "Median ABV") +
-#  theme_void()
-
-# Create the IBU map
-#p <- ggplot(median_map, aes(long, lat, group = group))+
-#  geom_polygon(aes(fill = median_ibu), color = "white")+
-#  scale_fill_viridis_c(option = "C") +
-#  labs(title = "Median IBU by State",
-#       fill = "Median IBU") +
-#  theme_void()
+median_map <- left_join(map_data("state"), median_abv_ibu, by = c("region" = "state"))
 
 # Use the map function to get the polygon data, then find the centroids
 state_poly <- maps::map("state",  plot=FALSE, fill = TRUE)
-#check state names
-state_poly$names
 
+# Define state centroids to plot values on states
 state_centroids <- maps:::apply.polygon(state_poly, maps:::centroid.polygon)
 
 # Create a data frame for graphing out of the centroids of each polygon
@@ -314,16 +292,16 @@ dimnames(centroid_array) <-
 label_df <- as.data.frame(centroid_array)
 label_df$state <- rownames(label_df)
 
-#remove extra names
+# Remove extra names
 label_df <- label_df[-c(20, 22, 34, 36, 37, 38, 40, 53, 54, 56, 57, 58, 59), ]
-#remove subregion 
+
+# Remove subregion 
 label_df$state <- str_extract(label_df$state, "[a-z ]+")
 
-#join label data with median_abv_ibu value
+# Join label data with median_abv_ibu value
 median_map_label <- left_join(label_df, median_abv_ibu, by = c("state" = "state"))
-head(median_map_label)
 
-#Median IBU with value
+# Create a map of median IBU by state with value
 ggplot(median_map, aes(long, lat, group = group)) +
   geom_polygon(aes(fill = median_ibu), color = "white") +
   geom_text(data = median_map_label,
@@ -332,46 +310,52 @@ ggplot(median_map, aes(long, lat, group = group)) +
   scale_fill_viridis_c() +
   labs(title = "Median IBU by State",
        fill = "Median IBU") +
-  theme_void() +
-  guides(fill = FALSE)
+  guides(fill = FALSE) +
+  coord_map() +
+  theme_void()
 
-#Median ABV with value
+# Save the map to the images folder
+# ggsave(here::here("images", "median ibu by state map.png"), dpi = "retina")
+
+# Create a map of median ABV by state with value
 ggplot(median_map, aes(long, lat, group = group)) +
   geom_polygon(aes(fill = median_abv), color = "white") +
   geom_text(data = median_map_label,
             aes(label = round(median_abv_per, digits = 1), group =
                   state),
-            size = 3) +
+            size = 2.75) +
   scale_fill_viridis_c() +
   labs(title = "Median ABV by State",
        fill = "Median ABV (%)") +
-  theme_void() +
-  guides(fill = FALSE)
+  guides(fill = FALSE) +
+  coord_map() +
+  theme_void()
+
+# Save the map to the images folder
+# ggsave(here::here("images", "median abv by state map.png"), dpi = "retina")
 ```
 
 ## Max ABV & IBU
 
-5. Which state has the maximum alcoholic (ABV) beer? Which state has the most bitter (IBU) beer?
+To determine which state had the highest ABV and IBU, respectively, we arranged the data set in descending order by the desired variable and kept only the top record. The state with the highest ABV was Colorado and the state with the highest IBU was Oregon.
 
 ```{r}
 # Highest ABV
 beer_brew %>% 
   arrange(desc(abv)) %>% 
   filter(row_number() == 1)
-#Colorado
 
 # Highest IBU
 beer_brew %>% 
   arrange(desc(ibu)) %>% 
   filter(row_number() == 1)
-#Oregon
 ```
 
-6. Comment on the summary statistics and distribution of the ABV variable.
+## ABV Summary Stats and Distribution
+
+Comment on the summary statistics and distribution of the ABV variable.
 
 ```{r}
-summary(beer_brew_noNA)
-
 # Histogram of ABV
 beer_brew %>%
   ggplot(aes(x = abv)) +
@@ -393,27 +377,37 @@ beer_brew %>%
   theme_minimal()
 ```
 
-7. Is there an apparent relationship between the bitterness of the beer and its alcoholic content? Draw a scatter plot.  Make your best judgment of a relationship and EXPLAIN your answer.
+## Is there a relationship between IBU and ABV?
+
+Is there an apparent relationship between the bitterness of the beer and its alcoholic content? Draw a scatter plot.  Make your best judgment of a relationship and EXPLAIN your answer.
 
 ```{r}
+# Create a scatter plot of ABV and IBU
 beer_brew %>%
   ggplot(aes(x = ibu, y = abv)) +
-  geom_jitter(alpha = 0.5) +
+  geom_jitter(alpha = 0.5, color = "#044389") +
   geom_smooth(method = "lm") +
   labs(title = "Is there a relationship Between ABV and IBU?",
        x = "IBU",
        y = "ABV") +
-  theme_minimal()
+  theme_minimal() +
+  theme(
+    panel.background = element_rect(fill = "#f3f3f2"),
+    plot.background = element_rect(fill = "#f3f3f2", color = NA),
+  )
+
+# Save the plot to the images folder
+# ggsave(here::here("images", "abv and ibu relationship.png"), dpi = "retina")
 ```
 
 ## KNN
 
-8. Budweiser would also like to investigate the difference with respect to IBU and ABV between IPAs (India Pale Ales) and other types of Ale (any beer with “Ale” in its name other than IPA). You decide to use KNN classification to investigate this relationship. Provide statistical evidence one way or the other. You can of course assume your audience is comfortable with percentages...KNN is very easy to understand conceptually.
+Budweiser would also like to investigate the difference with respect to IBU and ABV between IPAs (India Pale Ales) and other types of Ale (any beer with “Ale” in its name other than IPA). You decide to use KNN classification to investigate this relationship. Provide statistical evidence one way or the other. You can of course assume your audience is comfortable with percentages...KNN is very easy to understand conceptually.
 
 In addition, while you have decided to use KNN to investigate this relationship (KNN is required) you may also feel free to supplement your response to this question with any other methods or techniques you have learned. Creativity and alternative solutions are always encouraged.  
 
 ```{r}
-# Create data set of just "IPA" and "Ale"
+# Create data set of beers whose style contains only "IPA" or "Ale"
 ipa_ale <- beer_brew %>% 
   mutate(style2 = as_factor(case_when(str_detect(style, "IPA") ~ "IPA",
                                       str_detect(style, "ale") ~ "Ale"))) %>% 
@@ -422,14 +416,14 @@ ipa_ale <- beer_brew %>%
          abv,
          ibu)
 
-#create new standardized data set for knn
+# Create a new standardized data set for knn
 ipa_ale$abv_std <- standardize(ipa_ale$abv, centerFun = mean, scaleFun = sd)
 ipa_ale$ibu_std <- standardize(ipa_ale$ibu, centerFun = mean, scaleFun = sd)
 
 # Set seed
 set.seed(123)
 
-# find optimum k for predicting beer type based on IBU and ABV
+# Find optimum k for predicting beer type based on IBU and ABV
 iterations <- 100
 numks <- 30
 
@@ -466,9 +460,6 @@ test <- ipa_ale[-trainInd,]
 knn_model <- knn(train[, c(2, 3)], test[, c(2, 3)], train$style2, k = 3)
 CM <- confusionMatrix(knn_model, test$style2)
 CM
-
-
-```
 
 for (j in 1:iterations) {
   # trainInd <- sample(seq(1, 642, 1), .7 * 642)
@@ -608,52 +599,35 @@ beer_brew %>%
 ```
 
 ```{r}
-beer_brew %>% 
+explore <- beer_brew %>% 
   mutate(style2 = as_factor(case_when(str_detect(style, "IPA") ~ "IPA",
                                       str_detect(style, "ale") ~ "Ale"))) %>% 
   filter(style2 == "IPA") %>% 
   count(state) %>% 
   rename(st = state,
          ipas = n) %>% 
-  mutate(region = tolower(state.name[match(st,state.abb)])) %>%
-  right_join(map_data("state")) %>%
-  mutate(ipa_bucket = cut(ipas,
-                          breaks = c(-Inf, 0, 10, 20, 30, 40, 50, Inf),
-                          labels = c("None", "1-9", "10-19", "20-29", "30-39", "40-49", "50+"),
-                          ordered_result = TRUE)) %>%
-  filter(!is.na(region)) %>%
+  mutate(region = tolower(state.name[match(st,state.abb)])) 
+
+explore <- left_join(map_data("state"), explore)
+explore$ipas[is.na(explore$ipas)] <- 0
+
+explore %>%
+  mutate(ipa_potential = if_else(ipas < 10, "High", "Low")) %>%
   ggplot(aes(long, lat, group = group)) +
-  geom_polygon(aes(fill = ipa_bucket), color = "black") +
-  scale_fill_brewer(palette = "Set2") +
+  geom_polygon(aes(fill = ipa_potential), color = "gray30") +
+  scale_fill_manual(values = c(bud_red, alpha("gray90", 0.5))) +
   labs(title = "Middle America Offers IPA Market",
        subtitle = "few craft brew selections present an untapped market",
-       fill = "IPAs") +
+       fill = "Potential") +
+  coord_map() +
   theme_void() +
-  theme(legend.position = "bottom")
+  theme(
+    panel.background = element_rect(fill = "#f3f3f2"),
+    # bg of the panel
+    plot.background = element_rect(fill = "#f3f3f2", color = NA),
+    # bg of the plot
+    legend.position = "bottom")
 
-#this code was grouping several states together as "NA" due to join issues
-
-#beer_brew %>% 
-#  mutate(style2 = as_factor(case_when(str_detect(style, "IPA") ~ "IPA",
-#                                      str_detect(style, "ale") ~ "Ale"))) %>% 
-#  filter(style2 == "IPA") %>% 
-#  count(state) %>% 
-#  rename(st = state,
-#         ipas = n) %>% 
-#  mutate(region = tolower(state.name[match(st,state.abb)]),
-#         ipa_bucket = cut(ipas,
-#                          breaks = c(-Inf, 0, 10, 20, 30, 40, 50, Inf),
-#                          labels = c("None", "1-9", "10-19", "20-29", "30-39", "40-49", "50+"),
-#                          ordered_result = TRUE)) %>% 
-#  filter(!is.na(region)) %>% 
-#  right_join(map_data("state")) %>% 
-#  ggplot(aes(long, lat, group = group)) +
-#  geom_polygon(aes(fill = ipa_bucket), color = "black") +
-#  scale_fill_brewer(palette = "Set2") +
-#  labs(title = "Middle America Offers IPA Market",
-#       subtitle = "few craft brew selections present an untapped market",
-#       fill = "IPAs") +
-#  theme_void() +
-#  theme(legend.position = "bottom")
+# ggsave(here::here("images", "ipa potential.png"), dpi = "retina")
 ```
 
