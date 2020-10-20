@@ -48,6 +48,8 @@ Briefly explain the purpose of the code. The explanations should appear as a sen
 
 # Analysis Questions
 
+## Breweries by State
+
 1. How many breweries are present in each state?
 
 ```{r breweries-per-state}
@@ -119,6 +121,8 @@ breweries %>%
              n = "Breweries") 
 ```
 
+## Merge Beer & Breweries
+
 2. Merge beer data with the breweries data. Print the first 6 observations and the last six observations to check the merged file.  (RMD only, this does not need to be included in the presentation or the deck.)
 
 ```{r merge-beer-brew}
@@ -142,19 +146,28 @@ beer_brew %>%
   tab_header(title = "Last Six Observations")
 ```
 
+## Address Missing Values
+
 3. Address the missing values in each column.
 
 ```{r address-na}
 colSums(is.na(beer_brew))
 
-# Check to see if we should impute based on style or abv
-ggplot(beer_brew, aes(abv, ibu)) +
-  geom_jitter(alpha = 0.4, color = bud_red) +
-  geom_smooth(method = "lm") +
-  labs(title = "Relationship between ABV & IBU",
-       x = "Alcohol by Volume (abv)",
-       y = "International Bitterness Units (IBU)") +
-  theme_minimal()
+# Since our question of interest involves prediction based on abv and ibu, we may
+# want to do it two ways: straight up remove the NA's and then also impute them
+
+# # Removed NA
+# beer_brew_noNA <- na.omit(beer_brew)
+# #Down to 1403 obs versus 2410
+# 
+# # Check to see if we should impute based on style or abv
+# ggplot(beer_brew, aes(abv, ibu)) +
+#   geom_jitter(alpha = 0.4, color = bud_red) +
+#   geom_smooth(method = "lm") +
+#   labs(title = "Relationship between ABV & IBU",
+#        x = "Alcohol by Volume (abv)",
+#        y = "International Bitterness Units (IBU)") +
+#   theme_minimal()
 
 #distribution of ABV and IBU before imputation
 hist(beer_brew$abv)
@@ -176,10 +189,10 @@ impute_mean <- function(x) {
   as.numeric(x)
 }
 
-# Calculate mean ibu
+# Calculate mean ibu & abv
 beer_brew <- beer_brew %>% 
   group_by(style) %>% 
-  mutate_at(vars(ibu), impute_mean) %>% 
+  mutate_at(vars(ibu, abv), impute_mean) %>% 
   ungroup()
 
 # Calculate mean abv
@@ -203,6 +216,8 @@ beer_brew <- beer_brew %>%
 colSums(is.na(beer_brew))
 
 ```
+
+## Median ABV & IBU
 
 4. Compute the median alcohol content and international bitterness unit for each state. Plot a bar chart to compare.
 
@@ -334,6 +349,8 @@ ggplot(median_map, aes(long, lat, group = group)) +
   guides(fill = FALSE)
 ```
 
+## Max ABV & IBU
+
 5. Which state has the maximum alcoholic (ABV) beer? Which state has the most bitter (IBU) beer?
 
 ```{r}
@@ -389,6 +406,8 @@ beer_brew %>%
   theme_minimal()
 ```
 
+## KNN
+
 8. Budweiser would also like to investigate the difference with respect to IBU and ABV between IPAs (India Pale Ales) and other types of Ale (any beer with “Ale” in its name other than IPA). You decide to use KNN classification to investigate this relationship. Provide statistical evidence one way or the other. You can of course assume your audience is comfortable with percentages...KNN is very easy to understand conceptually.
 
 In addition, while you have decided to use KNN to investigate this relationship (KNN is required) you may also feel free to supplement your response to this question with any other methods or techniques you have learned. Creativity and alternative solutions are always encouraged.  
@@ -402,9 +421,6 @@ ipa_ale <- beer_brew %>%
   select(style2,
          abv,
          ibu)
-
-# Make IPA or ALE a factor
-# ipa_ale$style2 <- as.factor(ipa_ale$style2)
 
 #create new standardized data set for knn
 ipa_ale$abv_std <- standardize(ipa_ale$abv, centerFun = mean, scaleFun = sd)
@@ -420,7 +436,6 @@ numks <- 30
 masterAcc <- matrix(nrow = iterations, ncol = numks)
 
 for (j in 1:iterations) {
-  # trainInd <- sample(seq(1, 642, 1), .7 * 642)
   trainInd <- sample(1:dim(ipa_ale)[1], round(0.75 * dim(ipa_ale)[1]))
   train <- ipa_ale[trainInd,]
   test <- ipa_ale[-trainInd,]
@@ -428,7 +443,7 @@ for (j in 1:iterations) {
   for (i in 1:numks)
   {
     classifications <-
-      knn(train[, c(2, 3)], test[, c(2, 3)], train$style2, prob = TRUE, k = i)
+      knn(train[, c(2, 3)], test[, c(2, 3)], train$style2, prob = TRUE, k = i, use.all = TRUE)
     CM <- confusionMatrix(table(classifications, test$style2))
     masterAcc[j, i] <- CM$overall[1]
   }
@@ -455,10 +470,29 @@ CM
 
 ```
 
+for (j in 1:iterations) {
+  # trainInd <- sample(seq(1, 642, 1), .7 * 642)
+  # set.seed(j)
+  trainInd <- sample(1:dim(ipa_ale)[1], round(0.75 * dim(ipa_ale)[1]))
+  train <- ipa_ale[trainInd,]
+  test <- ipa_ale[-trainInd,]
+  
+  for (i in 1:numks)
+  {
+    classifications <-
+      knn(train[, c(2, 3)], test[, c(2, 3)], train$style2, prob = TRUE, k = i)
+    CM <- confusionMatrix(table(classifications, test$style2))
+    masterAcc[j, i] <- CM$overall[1]
+  }
+}
 
-```{r}
+MeanAcc <- colMeans(masterAcc)
 
+plot(seq(1, numks, 1), MeanAcc, type = "l")
+which.max(MeanAcc)
 ```
+
+## Knock Their Socks Off
 
 9. Knock their socks off! Find one other useful inference from the data that you feel Budweiser may be able to find value in. You must convince them why it is important and back up your conviction with appropriate statistical evidence. 
 
