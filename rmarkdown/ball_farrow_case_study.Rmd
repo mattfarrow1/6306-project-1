@@ -169,6 +169,19 @@ colSums(is.na(beer_brew))
 #        y = "International Bitterness Units (IBU)") +
 #   theme_minimal()
 
+#distribution of ABV and IBU before imputation
+hist(beer_brew$abv)
+hist(beer_brew$ibu)
+
+#check which styles are NA for ABV and IBU
+filter(beer_brew, ibu == "NaN")
+filter(beer_brew, abv == "NaN")
+
+
+#get rid of cider and mead because they are not beer
+beer_brew <- beer_brew %>%
+  filter((style != "Cider") & (style != "Mead"))
+
 # Impute mean
 impute_mean <- function(x) {
   ind_na <- is.na(x)
@@ -182,11 +195,26 @@ beer_brew <- beer_brew %>%
   mutate_at(vars(ibu, abv), impute_mean) %>% 
   ungroup()
 
-# Replace NaN with NA
-beer_brew$ibu[is.nan(beer_brew$ibu)] <- NA
+# Calculate mean abv
+beer_brew <- beer_brew %>% 
+  group_by(style) %>% 
+  mutate_at(vars(abv), impute_mean) %>% 
+  ungroup()
 
-# Drop remaining rows with missing values
-beer_brew <- na.omit(beer_brew)
+#distribution of ABV and IBU after imputation
+hist(beer_brew$abv)
+hist(beer_brew$ibu)
+
+# check for any remaining NA
+colSums(is.na(beer_brew))
+
+#still a stubborn 10 rows that are NA - this is because these styles don't have IBU. Remove these rows
+beer_brew <- beer_brew %>% 
+  drop_na(ibu)
+
+# check for any remaining NA
+colSums(is.na(beer_brew))
+
 ```
 
 ## Median ABV & IBU
@@ -430,51 +458,17 @@ which.max(MeanAcc)
 Based on this look for 30 different k's, we see the optimum accuracy is at k=3. 
 
 ```{r}
-# Run KNN with optimum k and internal CV
-AccHolder <- numeric(100)
-SensHolder <- numeric(100)
-SpecHolder <- numeric(100)
+# Run KNN with optimum k
 
-for (seed in 1:100) {
-  set.seed(seed)
-  trainIndices <-
-    # sample(seq(1:length(ipa_ale$style2)), round(.7 * length(ipa_ale$style2)))
-    sample(1:dim(ipa_ale)[1], round(0.75 * dim(ipa_ale)[1]))
-  trainBeer <- ipa_ale[trainIndices,]
-  testBeer <- ipa_ale[-trainIndices,]
-  classifications <-
-    knn(trainBeer[, c(2, 3)],
-        testBeer[, c(2, 3)],
-        train$style2,
-        prob = TRUE,
-        k = 3)
-  CM <- confusionMatrix(table(classifications, test$style2))
-  AccHolder[seed] <- CM$overall[1]
-  SensHolder[seed] <- CM$byClass[1]
-  SpecHolder[seed] <- CM$byClass[2]
-}
+trainInd <- sample(1:dim(ipa_ale)[1], round(0.75 * dim(ipa_ale)[1]))
+train <- ipa_ale[trainInd,]
+test <- ipa_ale[-trainInd,]
+knn_model <- knn(train[, c(2, 3)], test[, c(2, 3)], train$style2, k = 3)
+CM <- confusionMatrix(knn_model, test$style2)
+CM
 
-mean(AccHolder)
 
-# Standard Error of the Mean
-sd(AccHolder) / sqrt(100)
-mean(SensHolder)
-
-# Standard Error of the Mean
-sd(SensHolder) / sqrt(100)
-mean(SpecHolder)
-
-# Standard Error of the Mean
-sd(SensHolder) / sqrt(100)
 ```
-With k=3, our average accuracy performance with 100 random splits is only 0.52. Let's revisit to find a better k.
-
-```{r}
-# Can we loop with both 100 splits and 30 k's?
-iterations <- 100
-numks <- 30
-
-masterAcc <- matrix(nrow = iterations, ncol = numks)
 
 for (j in 1:iterations) {
   # trainInd <- sample(seq(1, 642, 1), .7 * 642)
@@ -502,14 +496,6 @@ which.max(MeanAcc)
 
 9. Knock their socks off! Find one other useful inference from the data that you feel Budweiser may be able to find value in. You must convince them why it is important and back up your conviction with appropriate statistical evidence. 
 
-Notes on items to look at:
-
-- IBU by style  
-- IBU by region  
-- Fewest breweries/state - market to tap into  
-- Utah low ABV opp?  
-- Predict ABV by style   
-- Plot  
 
 ```{r}
 # Additional EDA with size and ABV
@@ -629,20 +615,45 @@ beer_brew %>%
   count(state) %>% 
   rename(st = state,
          ipas = n) %>% 
-  mutate(region = tolower(state.name[match(st,state.abb)]),
-         ipa_bucket = cut(ipas,
+  mutate(region = tolower(state.name[match(st,state.abb)])) %>%
+  right_join(map_data("state")) %>%
+  mutate(ipa_bucket = cut(ipas,
                           breaks = c(-Inf, 0, 10, 20, 30, 40, 50, Inf),
                           labels = c("None", "1-9", "10-19", "20-29", "30-39", "40-49", "50+"),
-                          ordered_result = TRUE)) %>% 
-  filter(!is.na(region)) %>% 
-  right_join(map_data("state")) %>% 
+                          ordered_result = TRUE)) %>%
+  filter(!is.na(region)) %>%
   ggplot(aes(long, lat, group = group)) +
-  geom_polygon(aes(fill = ipa_bucket), color = "white") +
+  geom_polygon(aes(fill = ipa_bucket), color = "black") +
   scale_fill_brewer(palette = "Set2") +
   labs(title = "Middle America Offers IPA Market",
        subtitle = "few craft brew selections present an untapped market",
        fill = "IPAs") +
   theme_void() +
   theme(legend.position = "bottom")
+
+#this code was grouping several states together as "NA" due to join issues
+
+#beer_brew %>% 
+#  mutate(style2 = as_factor(case_when(str_detect(style, "IPA") ~ "IPA",
+#                                      str_detect(style, "ale") ~ "Ale"))) %>% 
+#  filter(style2 == "IPA") %>% 
+#  count(state) %>% 
+#  rename(st = state,
+#         ipas = n) %>% 
+#  mutate(region = tolower(state.name[match(st,state.abb)]),
+#         ipa_bucket = cut(ipas,
+#                          breaks = c(-Inf, 0, 10, 20, 30, 40, 50, Inf),
+#                          labels = c("None", "1-9", "10-19", "20-29", "30-39", "40-49", "50+"),
+#                          ordered_result = TRUE)) %>% 
+#  filter(!is.na(region)) %>% 
+#  right_join(map_data("state")) %>% 
+#  ggplot(aes(long, lat, group = group)) +
+#  geom_polygon(aes(fill = ipa_bucket), color = "black") +
+#  scale_fill_brewer(palette = "Set2") +
+#  labs(title = "Middle America Offers IPA Market",
+#       subtitle = "few craft brew selections present an untapped market",
+#       fill = "IPAs") +
+#  theme_void() +
+#  theme(legend.position = "bottom")
 ```
 
