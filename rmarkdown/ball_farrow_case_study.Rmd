@@ -74,7 +74,14 @@ ggplot(breweries_by_st_map, aes(long, lat, group = group)) +
   scale_fill_viridis_c(option = "inferno") +
   labs(title = "Breweries by State",
        fill = "") +
-  theme_void()
+  coord_map() +
+  theme_void() +
+  theme(
+    panel.background = element_rect(fill = "#f3f3f2"), # bg of the panel
+    plot.background = element_rect(fill = "#f3f3f2", color = NA), # bg of the plot
+  )
+
+# ggsave(here::here("images", "breweries by state.png"), dpi = "retina")
 
 # Number of Breweries by State
 by_st1 <- breweries_by_st %>% 
@@ -153,22 +160,6 @@ beer_brew %>%
 ```{r address-na}
 colSums(is.na(beer_brew))
 
-# Since our question of interest involves prediction based on abv and ibu, we may
-# want to do it two ways: straight up remove the NA's and then also impute them
-
-# # Removed NA
-# beer_brew_noNA <- na.omit(beer_brew)
-# #Down to 1403 obs versus 2410
-# 
-# # Check to see if we should impute based on style or abv
-# ggplot(beer_brew, aes(abv, ibu)) +
-#   geom_jitter(alpha = 0.4, color = bud_red) +
-#   geom_smooth(method = "lm") +
-#   labs(title = "Relationship between ABV & IBU",
-#        x = "Alcohol by Volume (abv)",
-#        y = "International Bitterness Units (IBU)") +
-#   theme_minimal()
-
 #distribution of ABV and IBU before imputation
 hist(beer_brew$abv)
 hist(beer_brew$ibu)
@@ -189,30 +180,25 @@ impute_mean <- function(x) {
   as.numeric(x)
 }
 
-# Calculate mean ibu & abv
+# Calculate mean IBU & ABV
 beer_brew <- beer_brew %>% 
   group_by(style) %>% 
   mutate_at(vars(ibu, abv), impute_mean) %>% 
   ungroup()
 
-# Calculate mean abv
-beer_brew <- beer_brew %>% 
-  group_by(style) %>% 
-  mutate_at(vars(abv), impute_mean) %>% 
-  ungroup()
-
-#distribution of ABV and IBU after imputation
+# Distribution of ABV and IBU after imputation
 hist(beer_brew$abv)
 hist(beer_brew$ibu)
 
-# check for any remaining NA
+# Check for any remaining NA
 colSums(is.na(beer_brew))
 
-#still a stubborn 10 rows that are NA - this is because these styles don't have IBU. Remove these rows
+# Still a stubborn 10 rows that are NA - this is because these styles don't have
+# IBU. Remove these rows
 beer_brew <- beer_brew %>% 
   drop_na(ibu)
 
-# check for any remaining NA
+# Check for any remaining NA
 colSums(is.na(beer_brew))
 
 ```
@@ -247,9 +233,18 @@ median_abv_ibu %>%
        x = "State",
        y = "ABV (%)") +
   scale_x_discrete(guide = guide_axis(angle = 90))  +
+  theme_minimal() +
   NULL
 
-#IBU
+# ggsave(
+#   here::here("images", "median abv by state.png"),
+#   dpi = "retina",
+#   width = 10,
+#   height = 3,
+#   units = "in"
+# )
+
+# IBU
 median_abv_ibu %>%
   filter(measure == "median_ibu") %>%
   ggplot(aes(x = reorder(state, -value), y = value)) +
@@ -258,7 +253,16 @@ median_abv_ibu %>%
        x = "State",
        y = "IBU") +
   scale_x_discrete(guide = guide_axis(angle = 90))  +
+  theme_minimal() +
   NULL
+
+# ggsave(
+#   here::here("images", "median ibu by state.png"),
+#   dpi = "retina",
+#   width = 10,
+#   height = 3,
+#   units = "in"
+# )
 ```
 
 ## Mapping the Data Instead
@@ -332,8 +336,11 @@ ggplot(median_map, aes(long, lat, group = group)) +
   scale_fill_viridis_c() +
   labs(title = "Median IBU by State",
        fill = "Median IBU") +
-  theme_void() +
-  guides(fill = FALSE)
+  guides(fill = FALSE) +
+  coord_map() +
+  theme_void()
+
+# ggsave(here::here("images", "median ibu by state map.png"), dpi = "retina")
 
 #Median ABV with value
 ggplot(median_map, aes(long, lat, group = group)) +
@@ -341,12 +348,15 @@ ggplot(median_map, aes(long, lat, group = group)) +
   geom_text(data = median_map_label,
             aes(label = round(median_abv_per, digits = 1), group =
                   state),
-            size = 3) +
+            size = 2.75) +
   scale_fill_viridis_c() +
   labs(title = "Median ABV by State",
        fill = "Median ABV (%)") +
-  theme_void() +
-  guides(fill = FALSE)
+  guides(fill = FALSE) +
+  coord_map() +
+  theme_void()
+
+# ggsave(here::here("images", "median abv by state map.png"), dpi = "retina")
 ```
 
 ## Max ABV & IBU
@@ -370,8 +380,6 @@ beer_brew %>%
 6. Comment on the summary statistics and distribution of the ABV variable.
 
 ```{r}
-summary(beer_brew_noNA)
-
 # Histogram of ABV
 beer_brew %>%
   ggplot(aes(x = abv)) +
@@ -398,12 +406,18 @@ beer_brew %>%
 ```{r}
 beer_brew %>%
   ggplot(aes(x = ibu, y = abv)) +
-  geom_jitter(alpha = 0.5) +
+  geom_jitter(alpha = 0.5, color = "#044389") +
   geom_smooth(method = "lm") +
   labs(title = "Is there a relationship Between ABV and IBU?",
        x = "IBU",
        y = "ABV") +
-  theme_minimal()
+  theme_minimal() +
+  theme(
+    panel.background = element_rect(fill = "#f3f3f2"),
+    plot.background = element_rect(fill = "#f3f3f2", color = NA),
+  )
+
+# ggsave(here::here("images", "abv and ibu relationship.png"), dpi = "retina")
 ```
 
 ## KNN
@@ -466,9 +480,6 @@ test <- ipa_ale[-trainInd,]
 knn_model <- knn(train[, c(2, 3)], test[, c(2, 3)], train$style2, k = 3)
 CM <- confusionMatrix(knn_model, test$style2)
 CM
-
-
-```
 
 for (j in 1:iterations) {
   # trainInd <- sample(seq(1, 642, 1), .7 * 642)
@@ -608,52 +619,35 @@ beer_brew %>%
 ```
 
 ```{r}
-beer_brew %>% 
+explore <- beer_brew %>% 
   mutate(style2 = as_factor(case_when(str_detect(style, "IPA") ~ "IPA",
                                       str_detect(style, "ale") ~ "Ale"))) %>% 
   filter(style2 == "IPA") %>% 
   count(state) %>% 
   rename(st = state,
          ipas = n) %>% 
-  mutate(region = tolower(state.name[match(st,state.abb)])) %>%
-  right_join(map_data("state")) %>%
-  mutate(ipa_bucket = cut(ipas,
-                          breaks = c(-Inf, 0, 10, 20, 30, 40, 50, Inf),
-                          labels = c("None", "1-9", "10-19", "20-29", "30-39", "40-49", "50+"),
-                          ordered_result = TRUE)) %>%
-  filter(!is.na(region)) %>%
+  mutate(region = tolower(state.name[match(st,state.abb)])) 
+
+explore <- left_join(map_data("state"), explore)
+explore$ipas[is.na(explore$ipas)] <- 0
+
+explore %>%
+  mutate(ipa_potential = if_else(ipas < 10, "High", "Low")) %>%
   ggplot(aes(long, lat, group = group)) +
-  geom_polygon(aes(fill = ipa_bucket), color = "black") +
-  scale_fill_brewer(palette = "Set2") +
+  geom_polygon(aes(fill = ipa_potential), color = "gray30") +
+  scale_fill_manual(values = c(bud_red, alpha("gray90", 0.5))) +
   labs(title = "Middle America Offers IPA Market",
        subtitle = "few craft brew selections present an untapped market",
-       fill = "IPAs") +
+       fill = "Potential") +
+  coord_map() +
   theme_void() +
-  theme(legend.position = "bottom")
+  theme(
+    panel.background = element_rect(fill = "#f3f3f2"),
+    # bg of the panel
+    plot.background = element_rect(fill = "#f3f3f2", color = NA),
+    # bg of the plot
+    legend.position = "bottom")
 
-#this code was grouping several states together as "NA" due to join issues
-
-#beer_brew %>% 
-#  mutate(style2 = as_factor(case_when(str_detect(style, "IPA") ~ "IPA",
-#                                      str_detect(style, "ale") ~ "Ale"))) %>% 
-#  filter(style2 == "IPA") %>% 
-#  count(state) %>% 
-#  rename(st = state,
-#         ipas = n) %>% 
-#  mutate(region = tolower(state.name[match(st,state.abb)]),
-#         ipa_bucket = cut(ipas,
-#                          breaks = c(-Inf, 0, 10, 20, 30, 40, 50, Inf),
-#                          labels = c("None", "1-9", "10-19", "20-29", "30-39", "40-49", "50+"),
-#                          ordered_result = TRUE)) %>% 
-#  filter(!is.na(region)) %>% 
-#  right_join(map_data("state")) %>% 
-#  ggplot(aes(long, lat, group = group)) +
-#  geom_polygon(aes(fill = ipa_bucket), color = "black") +
-#  scale_fill_brewer(palette = "Set2") +
-#  labs(title = "Middle America Offers IPA Market",
-#       subtitle = "few craft brew selections present an untapped market",
-#       fill = "IPAs") +
-#  theme_void() +
-#  theme(legend.position = "bottom")
+# ggsave(here::here("images", "ipa potential.png"), dpi = "retina")
 ```
 
