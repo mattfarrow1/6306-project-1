@@ -3,7 +3,7 @@ title: '6306: Case Study 1'
 author: "Megan Ball, Matt Farrow"
 output: html_document
 editor_options: 
-  chunk_output_type: console
+  chunk_output_type: inline
 ---
 
 ```{r setup, include=FALSE}
@@ -168,7 +168,7 @@ filter(beer_brew, abv == "NaN")
 # Get rid of cider and mead because they are not beer
 beer_brew <- beer_brew %>%
   filter((style != "Cider") & (style != "Mead"))
-
+  
 # Create a function to impute the mean
 impute_mean <- function(x) {
   ind_na <- is.na(x)
@@ -333,6 +333,14 @@ ggplot(median_map, aes(long, lat, group = group)) +
 
 # Save the map to the images folder
 # ggsave(here::here("images", "median abv by state map.png"), dpi = "retina")
+
+#which are the high IBU beers in DE, WV
+beer_brew %>% 
+  filter(state == "DE" | state == "WV")
+
+#which are the low & high ABV beers in UT, WV
+beer_brew %>% 
+  filter(state == "UT" | state == "WV")
 ```
 
 ## Max ABV & IBU
@@ -461,26 +469,6 @@ knn_model <- knn(train[, c(2, 3)], test[, c(2, 3)], train$style2, k = 3)
 CM <- confusionMatrix(knn_model, test$style2)
 CM
 
-for (j in 1:iterations) {
-  # trainInd <- sample(seq(1, 642, 1), .7 * 642)
-  # set.seed(j)
-  trainInd <- sample(1:dim(ipa_ale)[1], round(0.75 * dim(ipa_ale)[1]))
-  train <- ipa_ale[trainInd,]
-  test <- ipa_ale[-trainInd,]
-  
-  for (i in 1:numks)
-  {
-    classifications <-
-      knn(train[, c(2, 3)], test[, c(2, 3)], train$style2, prob = TRUE, k = i)
-    CM <- confusionMatrix(table(classifications, test$style2))
-    masterAcc[j, i] <- CM$overall[1]
-  }
-}
-
-MeanAcc <- colMeans(masterAcc)
-
-plot(seq(1, numks, 1), MeanAcc, type = "l")
-which.max(MeanAcc)
 ```
 
 ## Knock Their Socks Off
