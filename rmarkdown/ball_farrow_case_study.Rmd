@@ -431,50 +431,103 @@ ipa_ale$ibu_std <- standardize(ipa_ale$ibu, centerFun = mean, scaleFun = sd)
 # Set seed
 set.seed(123)
 
-# Find optimum k for predicting beer type based on IBU and ABV
+# Find the optimum k for predicting beer type based on IBU and ABV
+# ⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼⎼
+# Set the number of iterations
 iterations <- 100
+
+# Set the number of K's to test
 numks <- 30
 
+# Create a blank matrix for holding for loop results
 masterAcc <- matrix(nrow = iterations, ncol = numks)
 
+# For loop to split the data into training and testing sets, run a KNN on each
+# value of K, create a confusion matrix and add the results to our previously
+# created blank matrix
 for (j in 1:iterations) {
   trainInd <- sample(1:dim(ipa_ale)[1], round(0.75 * dim(ipa_ale)[1]))
-  train <- ipa_ale[trainInd,]
-  test <- ipa_ale[-trainInd,]
+  train <- ipa_ale[trainInd, ]
+  test <- ipa_ale[-trainInd, ]
   
   for (i in 1:numks)
   {
     classifications <-
-      knn(train[, c(2, 3)], test[, c(2, 3)], train$style2, prob = TRUE, k = i, use.all = TRUE)
+      knn(
+        train[, c(2, 3)],
+        test[, c(2, 3)],
+        train$style2,
+        prob = TRUE,
+        k = i,
+        use.all = TRUE
+      )
     CM <- confusionMatrix(table(classifications, test$style2))
     masterAcc[j, i] <- CM$overall[1]
   }
 }
 
+# Calculate the column means
 MeanAcc <- colMeans(masterAcc)
 
+# Plot results
 plot(seq(1, numks, 1), MeanAcc, type = "l")
+
+# Which K was most successful.
 which.max(MeanAcc)
 ```
 
-Based on this look for 30 different k's, we see the optimum accuracy is at k=3. 
+Based on this look for 30 different k's, we see the optimum accuracy is at k = 3. 
 
 ```{r}
-# Run KNN with optimum k
-
+# Run the KNN model with our optimum k
 trainInd <- sample(1:dim(ipa_ale)[1], round(0.75 * dim(ipa_ale)[1]))
 train <- ipa_ale[trainInd,]
 test <- ipa_ale[-trainInd,]
 knn_model <- knn(train[, c(2, 3)], test[, c(2, 3)], train$style2, k = 3)
 CM <- confusionMatrix(knn_model, test$style2)
 CM
-
 ```
 
 ## Knock Their Socks Off
 
-9. Knock their socks off! Find one other useful inference from the data that you feel Budweiser may be able to find value in. You must convince them why it is important and back up your conviction with appropriate statistical evidence. 
+As we explored IBU, we noticed that the higher median IBU values tended to fall around the coasts and major metropolitan areas. That got us thinking about the relative dearth of hoppy, higher-IBU beer across much of the middle of the country and the opportunity that presents you with at Budweiser. Your brand power, trusted reputation for quality, and your distribution pipeline have placed you in an ideal position to beginn capitalizing on the popularity that higher IBU beers have begun to enjoy. 
 
+```{r}
+explore <- beer_brew %>% 
+  mutate(style2 = as_factor(case_when(str_detect(style, "IPA") ~ "IPA",
+                                      str_detect(style, "ale") ~ "Ale"))) %>% 
+  filter(style2 == "IPA") %>% 
+  count(state) %>% 
+  rename(st = state,
+         ipas = n) %>% 
+  mutate(region = tolower(state.name[match(st,state.abb)])) 
+
+explore <- left_join(map_data("state"), explore)
+explore$ipas[is.na(explore$ipas)] <- 0
+
+explore %>%
+  mutate(ipa_potential = if_else(ipas < 10, "High", "Low")) %>%
+  ggplot(aes(long, lat, group = group)) +
+  geom_polygon(aes(fill = ipa_potential), color = "gray30") +
+  scale_fill_manual(values = c(bud_red, alpha("gray90", 0.5))) +
+  labs(title = "Middle America Offers IPA Market",
+       subtitle = "few craft brew selections present an untapped market",
+       fill = "Potential") +
+  coord_map() +
+  theme_void() +
+  theme(
+    panel.background = element_rect(fill = "#f3f3f2"),
+    # bg of the panel
+    plot.background = element_rect(fill = "#f3f3f2", color = NA),
+    # bg of the plot
+    legend.position = "bottom")
+
+# ggsave(here::here("images", "ipa potential.png"), dpi = "retina")
+```
+
+## Additional Exploration
+
+The following are additional explorations that we considered for the questions in this analysis. We opted to include it to show our thought process as well as provide ideas for future exploration. 
 
 ```{r}
 # Additional EDA with size and ABV
@@ -513,12 +566,12 @@ beer_brew %>%
   theme_minimal() + 
   coord_flip()
 
-
 # What are the beers in Utah?
 beer_brew %>%
   filter(state == "UT")
 # 26 total beers, three cities: Midvale, Moab, SLC
 
+# What are the beer styles in Utah?
 beer_brew %>%
   filter(state == "UT") %>%
   count(style) %>%
@@ -527,7 +580,7 @@ beer_brew %>%
   gt() %>%
   tab_header(title = "Beer Styles in Utah")
 
-# What are the beers in ND, SD, WV with only one brewery?
+# What are the beers in the states with only one brewery (ND, SD, WV)
 beer_brew %>%
   filter(state == "ND" | state == "SD" | state == "WV")
 
@@ -562,7 +615,7 @@ beer_brew %>%
     count = n()
   )
 
-#Highest IBU beer styles
+# Highest IBU beer styles
 beer_brew %>% 
   group_by(style) %>% # Group by the beer style
   summarise(IBU = mean(ibu)) %>% # mean abv by style
@@ -585,37 +638,3 @@ beer_brew %>%
   summarize(count = n()) %>% 
   ungroup()
 ```
-
-```{r}
-explore <- beer_brew %>% 
-  mutate(style2 = as_factor(case_when(str_detect(style, "IPA") ~ "IPA",
-                                      str_detect(style, "ale") ~ "Ale"))) %>% 
-  filter(style2 == "IPA") %>% 
-  count(state) %>% 
-  rename(st = state,
-         ipas = n) %>% 
-  mutate(region = tolower(state.name[match(st,state.abb)])) 
-
-explore <- left_join(map_data("state"), explore)
-explore$ipas[is.na(explore$ipas)] <- 0
-
-explore %>%
-  mutate(ipa_potential = if_else(ipas < 10, "High", "Low")) %>%
-  ggplot(aes(long, lat, group = group)) +
-  geom_polygon(aes(fill = ipa_potential), color = "gray30") +
-  scale_fill_manual(values = c(bud_red, alpha("gray90", 0.5))) +
-  labs(title = "Middle America Offers IPA Market",
-       subtitle = "few craft brew selections present an untapped market",
-       fill = "Potential") +
-  coord_map() +
-  theme_void() +
-  theme(
-    panel.background = element_rect(fill = "#f3f3f2"),
-    # bg of the panel
-    plot.background = element_rect(fill = "#f3f3f2", color = NA),
-    # bg of the plot
-    legend.position = "bottom")
-
-# ggsave(here::here("images", "ipa potential.png"), dpi = "retina")
-```
-
