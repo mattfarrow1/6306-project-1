@@ -123,6 +123,8 @@ breweries %>%
              n = "Breweries") 
 ```
 
+The top three states are Colorado (47), California (39), and Michigan (32). The bottom three states are North Dakota (1), South Dakota (1), and West Virginia (1). 
+
 ## Merge Beer & Breweries Data
 
 After taking a look at the brewery data, we next merged it with the beer data in order to start our analysis of alcohol by volume (ABV) and international bitterness units (IBU). We'll take a look at the data after we merged it to make sure everything looks ok. 
@@ -258,6 +260,10 @@ median_abv_ibu %>%
 # )
 ```
 
+Delaware and West Virginia have the highest median IBU, but only include two beers per state. After that, Minnesota has the highest median IBU at 45 and includes a total of 12 breweries.
+
+Kentucky has the highest median ABV at 6.5%.
+
 ### Mapping the Data Instead
 
 While the histograms offer a quick look at the median distribution and an assessment of which state has the highest and lowest median values, we also thought it would be interesting to once again map the data to see if there were regional trends that might be hiding in the data. 
@@ -345,7 +351,7 @@ beer_brew %>%
 
 ## Max ABV & IBU
 
-To determine which state had the highest ABV and IBU, respectively, we arranged the data set in descending order by the desired variable and kept only the top record. The state with the highest ABV was Colorado and the state with the highest IBU was Oregon.
+To determine which beer had the highest ABV and IBU, respectively, we arranged the data set in descending order by the desired variable and kept only the top record. The state with the highest ABV was Colorado and the state with the highest IBU was Oregon.
 
 ```{r}
 # Highest ABV
@@ -385,6 +391,8 @@ beer_brew %>%
   theme_minimal()
 ```
 
+ABV ranges for the most part ranges between 2.5 to 10%. Most of the beers in our data set fall between 5 and 6%. There are three outliers at 12%, 12.5%, and 12.8%.
+
 ## Is there a relationship between IBU and ABV?
 
 Is there an apparent relationship between the bitterness of the beer and its alcoholic content? Draw a scatter plot.  Make your best judgment of a relationship and EXPLAIN your answer.
@@ -407,6 +415,7 @@ beer_brew %>%
 # Save the plot to the images folder
 # ggsave(here::here("images", "abv and ibu relationship.png"), dpi = "retina")
 ```
+There does appear to be some quantifiable relationship between IBU and ABV. In general, as IBU increases, ABV appears to increase as well.
 
 ## KNN
 
@@ -509,14 +518,14 @@ explore %>%
   mutate(ipa_potential = if_else(ipas < 10, "High", "Low")) %>%
   ggplot(aes(long, lat, group = group)) +
   geom_polygon(aes(fill = ipa_potential), color = "gray30") +
-  scale_fill_manual(values = c(bud_red, alpha("gray90", 0.5))) +
+  scale_fill_manual(values = c("#ffdf00", alpha("gray90", 0.5))) +
   labs(title = "Middle America Offers IPA Market",
        subtitle = "few craft brew selections present an untapped market",
        fill = "Potential") +
   coord_map() +
-  theme_void() +
+  theme_void() #+
   theme(
-    panel.background = element_rect(fill = "#f3f3f2"),
+  panel.background = element_rect(fill = "#f3f3f2"),
     # bg of the panel
     plot.background = element_rect(fill = "#f3f3f2", color = NA),
     # bg of the plot
@@ -649,3 +658,6 @@ beer_brew %>%
   cols_label(style = "Style",
              style_count = "Count")
 ```
+## Conclusion
+
+We were able to find some interesting insights in the data based on location, IBU, and ABV. States on the coast and with major metropolitan areas tend to have more breweries and more beer variety. Utah is a state that could benefit from more variety for low alcohol content beers in particular, and Colorado is likely an already saturated market. For most of Middle America, there is an opportunity to increase distribution or even add new breweries to allow for more variety for consumers. We also suggested 15 different styles that have the least number of existing available beers that could be considered for new beers at Budweiser.
