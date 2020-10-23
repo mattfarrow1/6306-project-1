@@ -2,7 +2,7 @@
 
 ## Videos
 
-[Matt](https://youtu.be/0wok011UzUA)
+[Matt](https://youtu.be/0wok011UzUA) <br>
 [Megan](https://youtu.be/f41UFSxob1A)
 
 ## Data Description
