@@ -658,6 +658,7 @@ beer_brew %>%
   cols_label(style = "Style",
              style_count = "Count")
 ```
+
 ## Conclusion
 
 We were able to find some interesting insights in the data based on location, IBU, and ABV. States on the coast and with major metropolitan areas tend to have more breweries and more beer variety. Utah is a state that could benefit from more variety for low alcohol content beers in particular, and Colorado is likely an already saturated market. For most of Middle America, there is an opportunity to increase distribution or even add new breweries to allow for more variety for consumers. We also suggested 15 different styles that have the least number of existing available beers that could be considered for new beers at Budweiser.
