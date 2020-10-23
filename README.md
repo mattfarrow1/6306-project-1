@@ -1,5 +1,9 @@
 # MSDS 6306: Case Study 1 - Beer
 
+## Videos
+
+[Matt](https://youtu.be/0wok011UzUA)
+
 ## Data Description
 
 The Beers dataset contains a list of 2410 US craft beers and Breweries dataset contains 558 US breweries. The datasets descriptions are as follows.
