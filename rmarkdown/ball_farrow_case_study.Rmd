@@ -3,7 +3,7 @@ title: '6306: Case Study 1'
 author: "Megan Ball, Matt Farrow"
 output: html_document
 editor_options: 
-  chunk_output_type: inline
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
@@ -15,8 +15,8 @@ library(gt)        # to create nicely formatted tables
 library(lindia)    # for creating covariance matrices
 library(maps)      # for creating maps
 library(viridis)   # chart colors
-library(caret)     # to create knn model
-library(class)     # 
+library(caret)     # to create train/test splits
+library(class)     # to run knn model
 library(dplyr)     # for data wrangling
 library(tidyverse) # for data wrangling and plotting
 library(robustHD)  #
@@ -619,7 +619,7 @@ beer_brew %>%
 beer_brew %>% 
   group_by(style) %>% # Group by the beer style
   summarise(IBU = mean(ibu)) %>% # mean abv by style
-  filter(IBU > 50) %>% # Only the larger groups
+  filter(IBU > 55) %>% # Only the larger groups
   ggplot(aes(reorder(style, IBU), IBU)) + # Reorder the bars
   geom_col(fill = '#C8102E') + 
   labs(
@@ -637,4 +637,15 @@ beer_brew %>%
   group_by(state, style) %>%
   summarize(count = n()) %>% 
   ungroup()
+
+#Least common styles
+beer_brew %>%
+  count(style) %>%
+  rename(style_count = n) %>%
+  arrange(style_count) %>%
+  slice_head(n = 15) %>%
+  gt() %>%
+  tab_header(title = "Least Popular Styles") %>% 
+  cols_label(style = "Style",
+             style_count = "Count")
 ```
